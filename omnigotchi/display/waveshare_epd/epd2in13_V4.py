@@ -285,7 +285,11 @@ class EPD:
         image : Image data
     '''
     def displayPartial(self, image):
-        self.send_command(0x3C) # BorderWaveform
+        epdconfig.digital_write(self.reset_pin, 0)
+        epdconfig.delay_ms(1)
+        epdconfig.digital_write(self.reset_pin, 1)  
+
+        self.send_command(0x3C) # BorderWavefrom
         self.send_data(0x80)
 
         self.send_command(0x01) # Driver output control      
@@ -299,7 +303,7 @@ class EPD:
         self.SetWindow(0, 0, self.width - 1, self.height - 1)
         self.SetCursor(0, 0)
         
-        self.send_command(0x24) # WRITE_RAM (Current Image)
+        self.send_command(0x24) # WRITE_RAM
         self.send_data2(image)  
         self.TurnOnDisplayPart()
 
@@ -310,6 +314,9 @@ class EPD:
     '''
     def displayPartBaseImage(self, image):
         self.send_command(0x24)
+        self.send_data2(image)  
+                
+        self.send_command(0x26)
         self.send_data2(image)  
         self.TurnOnDisplay()
     

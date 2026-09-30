@@ -1,4 +1,4 @@
-"""Pwnagotchi-grade Expressions, Faces (60+) and Dynamic Quotes for OmniGotchi."""
+"""Pwnagotchi-grade Expressions, Faces (75+) and Dynamic Quotes for OmniGotchi."""
 
 import random
 from typing import Dict, List, Optional
@@ -7,109 +7,116 @@ FACES: Dict[str, List[str]] = {
     "HAPPY": [
         "( ^ _ ^ )",
         "( ^ . ^ )",
-        "( * ^ _ ^ * )",
         "( ^ o ^ )",
-        "( ' v ' )",
-        "( ^ u ^ )",
-        "( = ^ . ^ = )",
-        "( > . < )",
-        "( ^ _ ~ )",
-        "\\( ^ o ^ )/",
+        "( ^ - ^ )",
+        "( o _ o )",
+        "( o . o )",
+        "( * _ * )",
+        "( * . * )",
+        "( 3 _ 3 )",
+        "( 3 . 3 )",
+        "( u _ u )",
+        "( v _ v )",
     ],
     "SMUG": [
         "( - _ ^ )",
-        "( $ _ $ )",
-        "( B _ ) )",
-        "( ~ _ ~ )",
+        "( ^ _ - )",
+        "( > _ ^ )",
+        "( ^ _ < )",
+        "( ~ _ ^ )",
+        "( ^ _ ~ )",
+        "( = _ ^ )",
+        "( ^ _ = )",
         "( ¬ _ ¬ )",
-        "( * _ ~ )",
-        "[ - _ ^ ]",
-        "( = _ = )",
+        "( ¬ _ ^ )",
     ],
     "CODING": [
-        "( 0 _ 0 )b",
-        "( > _ < )/",
-        "( [ # ] _ [ # ] )",
+        "( [ _ ] )",
+        "( { _ } )",
+        "( 0 _ 0 )",
         "( 0 _ 1 )",
-        "( ; _ ; )",
+        "( 1 _ 0 )",
+        "( < _ > )",
+        "( > _ < )",
         "( / _ \\ )",
-        "( * _ * )",
-        "( @ _ @ )",
-        "( { } _ { } )",
+        "( \\ _ / )",
+        "( | _ | )",
     ],
     "SENTINEL": [
-        "( o _ o )",
         "( O _ O )",
+        "( O . O )",
+        "( @ _ @ )",
+        "( @ . @ )",
         "( ! _ ! )",
+        "( ! . ! )",
         "( ? _ ? )",
-        "( * _ * )!",
+        "( ? . ? )",
         "( o _ O )",
         "( O _ o )",
-        "[ o _ o ]",
     ],
     "DEFCON": [
-        "( ! _ ! )",
         "( > _ < )",
+        "( > . < )",
+        "( ! _ ! )",
         "( X _ X )",
-        "( / _ \\ )",
+        "( x _ x )",
+        "( * _ * )",
         "( # _ # )",
-        "( = _ = )!",
-        "( O _ O )!",
-        "[ ! _ ! ]",
+        "( $ _ $ )",
     ],
     "SHIELD": [
-        "[ = _ = ]",
-        "[ # _ # ]",
-        "[ + _ + ]",
-        "[ * _ * ]",
-        "[ O _ O ]",
-        "[ - _ - ]",
-        "[ ^ _ ^ ]",
+        "( [ _ ] )",
+        "( = _ = )",
+        "( = . = )",
+        "( - _ - )",
+        "( - . - )",
+        "( + _ + )",
+        "( + . + )",
     ],
     "MUSIC": [
-        "d( ^ _ ^ )b",
-        "d( * _ * )b",
-        "d( o _ o )b",
-        "d( - _ - )b",
-        "( ~ _ ^ )z",
-        "( ^ _ ^ )//",
-        "d( ^ o ^ )b",
+        "( d _ b )",
+        "( q _ p )",
+        "( d . b )",
+        "( q . p )",
+        "( ^ _ ^ )~",
+        "~( ^ _ ^ )",
     ],
     "DANCING": [
         "\\( ^ _ ^ )/",
         "/( ^ _ ^ )\\",
-        "\\( ^ o ^ )/",
-        "/( ^ o ^ )\\",
+        "\\( o _ o )/",
+        "/( o _ o )\\",
+        "\\( * _ * )/",
     ],
     "SLEEPY": [
-        "( - _ - ) zZ",
-        "( . _ . )",
-        "( u _ u )",
-        "( z _ z )",
-        "( - . - )",
-        "( = _ = )z",
-        "( ~ _ ~ )",
+        "( - _ - )zZ",
+        "( u _ u )zZ",
+        "( v _ v )zZ",
+        "( . _ . )zZ",
+        "( ~ _ ~ )zZ",
     ],
     "HUNGRY": [
         "( . _ . )",
-        "( o _ o )",
-        "( O _ o )",
-        "( = _ = )",
-        "( ' _ ' )",
+        "( . . . )",
+        "( o _ . )",
+        "( . _ o )",
+        "( ; _ ; )",
+        "( T _ T )",
     ],
     "LEVEL_UP": [
-        "( * _ * )*",
-        "\\( ^ _ ^ )/*",
+        "( * _ * )!",
+        "( ^ _ ^ )*",
         "( $ _ $ )!",
-        "*( ^ o ^ )*",
-        "\\( * _ * )/",
+        "( ! _ ! )*",
+        "( > _ < )*",
     ],
     "DERP": [
-        "( o _ o )",
-        "( @ _ @ )",
-        "( ? _ ? )",
-        "( ~ _ ~ )",
-        "( / _ \\ )",
+        "( @ _ o )",
+        "( o _ @ )",
+        "( ? _ o )",
+        "( o _ ? )",
+        "( ~ _ o )",
+        "( o _ ~ )",
     ],
 }
 
@@ -158,7 +165,7 @@ QUOTES: Dict[str, List[str]] = {
         "BPM matched to my core.",
     ],
     "DANCING": [
-        "(ノ^_^)ノ ♪ ♫",
+        "\\( ^ _ ^ )/ Party on!",
         "Grooving to the bassline!",
         "Feeling the rhythm!",
     ],
@@ -182,7 +189,6 @@ QUOTES: Dict[str, List[str]] = {
 
 
 def get_random_face(mood: str) -> str:
-    # Map synonyms to pool
     m = mood.upper()
     if m in ("SLEEPING", "TIRED"):
         m = "SLEEPY"
@@ -201,11 +207,11 @@ def get_random_quote(mood: str, context: Optional[dict] = None) -> str:
             artist = context.get("artist", "")
             title = context.get("track_title", "")
             if artist:
-                return f"Vibin' to {artist[:16]}"
-            return f"Playing: {title[:18]}"
+                return f"Vibin to {artist[:14]}"
+            return f"Playing: {title[:16]}"
         if mood == "CODING" and context.get("last_repo"):
             repo = context.get("last_repo", "")
-            return f"Cooking in {repo[:16]}!"
+            return f"Cooking in {repo[:14]}!"
         if mood in ("SENTINEL", "DEFCON", "SHIELD") and context.get("sec_alert"):
             return context["sec_alert"][:22]
 

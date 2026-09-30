@@ -167,13 +167,10 @@ class GotchiEngine:
                 hw_img = img.rotate(self.brain.state.rotation, expand=False)
 
             # Determine full vs partial refresh
-            if self.config.partial_refresh_limit > 0:
-                self.partial_count += 1
-                is_partial = partial and (self.partial_count < self.config.partial_refresh_limit)
-                if not is_partial:
-                    self.partial_count = 0
-            else:
-                is_partial = partial
+            self.partial_count += 1
+            is_partial = partial and (self.partial_count < self.config.partial_refresh_limit)
+            if not is_partial:
+                self.partial_count = 0
 
             self.display_driver.display(hw_img, partial=is_partial)
         except Exception as e:

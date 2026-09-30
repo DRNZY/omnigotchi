@@ -56,18 +56,18 @@ class EPaperHardwareDriver:
         with self.lock:
             try:
                 buf = self.epd.getbuffer(image)
-
                 if partial and hasattr(self.epd, "displayPartial"):
                     self.epd.displayPartial(buf)
                     self.is_in_partial_mode = True
                 else:
-                    if hasattr(self.epd, "init"):
+                    # When switching from partial to full or doing full refresh, re-init full waveform
+                    if self.is_in_partial_mode or not partial:
                         try:
                             self.epd.init()
                         except Exception:
                             pass
                     self.epd.display(buf)
-                    self.is_in_partial_mode = True
+                    self.is_in_partial_mode = False
             except Exception as e:
                 logger.error(f"Hardware display write failed: {e}")
                 self.recover()
@@ -79,7 +79,7 @@ class EPaperHardwareDriver:
         logger.warning("Attempting hardware EPD recovery...")
         try:
             self.epd.init()
-            self.epd.Clear(0x00)
+            self.epd.Clear(0xFF)
             self.is_in_partial_mode = False
             logger.info("EPD hardware recovery succeeded.")
         except Exception as e:
@@ -90,7 +90,7 @@ class EPaperHardwareDriver:
             with self.lock:
                 try:
                     self.epd.init()
-                    self.epd.Clear(0x00)
+                    self.epd.Clear(0xFF)
                     self.is_in_partial_mode = False
                 except Exception:
                     pass
