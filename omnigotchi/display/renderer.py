@@ -156,7 +156,7 @@ class GotchiRenderer:
         draw.text((88, 36), f"RAM : {ram_used}/{ram_total}MB ({ram_pct}%)", font=self.font_small, fill=255)
         draw.text((88, 48), f"SYS : CPU {cpu_pct}% ({watt_w}W) | PING: {ping_ms}ms", font=self.font_small, fill=255)
         draw.text((88, 60), f"NET : {lan_hosts} LAN (ARP:{arp_ok}) | {wifi_aps} RF APs", font=self.font_small, fill=255)
-        draw.text((88, 72), f"SEC : SSH {ssh_blocked} blk | DNS:{dns_ok} | {ports_count} Ports", font=self.font_small, fill=255)
+        draw.text((88, 72), f"SEC : SSH {ssh_blocked} blk | DNS OK | {ports_count} Ports", font=self.font_small, fill=255)
         draw.text((88, 84), f"STAT: {sec_status}", font=self.font_bold, fill=255)
 
         # 4. Bottom Footer Bar (y: 101..121)
