@@ -34,7 +34,7 @@ class GotchiRenderer:
 
         if font_file:
             self.font_hdr = ImageFont.truetype(font_file, 10)
-            self.font_face = ImageFont.truetype(font_file, 12)
+            self.font_face = ImageFont.truetype(font_file, 11)
             self.font_text = ImageFont.truetype(font_file, 9)
             self.font_mini = ImageFont.truetype(font_file, 8)
         else:
