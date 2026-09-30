@@ -102,6 +102,16 @@ class GotchiEngine:
             self.display_driver.sleep()
         logger.info("OmniGotchi engine stopped cleanly.")
 
+    def flip_screen(self) -> int:
+        """Toggles rotation between 0 and 180 degrees and refreshes screen."""
+        cur = self.brain.state.rotation
+        new_rot = 180 if cur == 0 else 0
+        self.brain.state.rotation = new_rot
+        self.brain._save()
+        self.trigger_render(partial=False)
+        logger.info(f"Screen flipped to {new_rot} degrees")
+        return new_rot
+
     def trigger_render(self, partial: bool = True):
         """Immediately renders and refreshes display."""
         self.brain.resolve_mood(self.dev_data, self.audio_data, self.net_data)
@@ -111,6 +121,11 @@ class GotchiEngine:
             self.audio_data,
             self.net_data,
         )
+
+        # Apply rotation if configured
+        if self.brain.state.rotation != 0:
+            img = img.rotate(self.brain.state.rotation, expand=False)
+
         self.current_image = img
 
         # Determine full vs partial refresh

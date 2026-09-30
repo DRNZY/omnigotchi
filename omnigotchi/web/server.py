@@ -98,6 +98,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="actions">
       <button onclick="sendAction('pet')">🐾 Pet Omni (+10 XP)</button>
       <button class="btn-primary" onclick="sendAction('feed')">🍕 Feed Bytes (+15 XP)</button>
+      <button onclick="sendAction('flip')">🔄 Flip Screen (180°)</button>
     </div>
 
     <div class="grid">
@@ -114,7 +115,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <div class="card-val" id="xp-val">0 / 100</div>
       </div>
       <div class="card">
-        <div class="card-title">Network Latency</div>
+        <div class="card-title">Network & Screen</div>
         <div class="card-val" id="ping-val">-- ms</div>
       </div>
     </div>
@@ -136,7 +137,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           document.getElementById('mood-val').innerText = data.brain.mood + ' ' + data.brain.face;
           document.getElementById('title-val').innerText = data.brain.title;
           document.getElementById('xp-val').innerText = data.brain.xp + ' / ' + data.brain.xp_next;
-          document.getElementById('ping-val').innerText = data.net.ping_ms + ' ms';
+          document.getElementById('ping-val').innerText = data.net.ping_ms + ' ms • ' + (data.brain.rotation || 0) + '°';
         }
       } catch (e) {}
     }
@@ -170,6 +171,7 @@ class GotchiWebServer:
         self.app.router.add_get("/api/stats", self._handle_stats_json)
         self.app.router.add_post("/api/action/pet", self._handle_pet)
         self.app.router.add_post("/api/action/feed", self._handle_feed)
+        self.app.router.add_post("/api/action/flip", self._handle_flip)
 
     async def start(self):
         self.runner = web.AppRunner(self.app)
@@ -206,6 +208,7 @@ class GotchiWebServer:
                 "title": self.engine.brain.state.title,
                 "hunger": self.engine.brain.state.hunger,
                 "happiness": self.engine.brain.state.happiness,
+                "rotation": self.engine.brain.state.rotation,
             },
             "dev": self.engine.dev_data,
             "audio": self.engine.audio_data,
@@ -222,3 +225,7 @@ class GotchiWebServer:
         self.engine.brain.feed()
         self.engine.trigger_render()
         return web.Response(text=json.dumps({"ok": True}), content_type="application/json")
+
+    async def _handle_flip(self, request: web.Request) -> web.Response:
+        new_rot = self.engine.flip_screen()
+        return web.Response(text=json.dumps({"ok": True, "rotation": new_rot}), content_type="application/json")

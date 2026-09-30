@@ -36,6 +36,9 @@ class GotchiState:
     title: str = "Script Novice"
     badges: List[str] = field(default_factory=lambda: ["GENESIS"])
     
+    # Visual settings
+    rotation: int = 0  # 0 or 180
+    
     # Life statistics
     total_commits: int = 0
     total_tracks_listened: int = 0
