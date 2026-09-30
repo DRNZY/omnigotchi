@@ -59,8 +59,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       max-width: 500px;
       aspect-ratio: 250 / 122;
       image-rendering: pixelated;
-      border: 2px solid #222;
-      background: #fff;
+      border: 2px solid #333;
+      background: #000;
     }
 
     /* Action Buttons */
