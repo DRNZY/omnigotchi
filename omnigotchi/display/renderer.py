@@ -154,16 +154,16 @@ class GotchiRenderer:
         else:
             commits = dev_data.get("recent_commits_24h", 0)
             streak = dev_data.get("streak_days", 1)
-            ssid = net_data.get("wifi_ssid", "LAN")[:12]
-            footer_line1 = f"DEV: {commits} commits (24h) | Streak: {streak}d | Wi-Fi: {ssid}"
+            ssid = net_data.get("wifi_ssid", "LAN")[:14]
+            footer_line1 = f"DEV: {commits} commits | Streak: {streak}d | Wi-Fi: {ssid}"
 
         rx = net_data.get("rx_kbps", 0.0)
         tx = net_data.get("tx_kbps", 0.0)
         uptime = net_data.get("uptime_str", "0h")
         footer_line2 = f"NET: RX {rx}k TX {tx}k | Up {uptime} | {temp_c:.1f}°C"
 
-        draw.text((4, 102), footer_line1[:46], font=self.font_mini, fill=255)
-        draw.text((4, 111), footer_line2[:46], font=self.font_mini, fill=255)
+        draw.text((4, 102), footer_line1, font=self.font_mini, fill=255)
+        draw.text((4, 111), footer_line2, font=self.font_mini, fill=255)
 
     def _render_sentinel_hud(
         self,
