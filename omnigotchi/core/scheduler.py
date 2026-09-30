@@ -158,11 +158,13 @@ class GotchiEngine:
                 self.security_data,
             )
 
-            # Apply rotation if configured
-            if self.brain.state.rotation != 0:
-                img = img.rotate(self.brain.state.rotation, expand=False)
-
+            # Web & OmniHUD mirror image (always straight and upright on computer)
             self.current_image = img
+
+            # Physical hardware display image (rotated to match IRL HAT orientation)
+            hw_img = img
+            if self.brain.state.rotation != 0:
+                hw_img = img.rotate(self.brain.state.rotation, expand=False)
 
             # Determine full vs partial refresh
             self.partial_count += 1
@@ -170,7 +172,7 @@ class GotchiEngine:
             if not is_partial:
                 self.partial_count = 0
 
-            self.display_driver.display(img, partial=is_partial)
+            self.display_driver.display(hw_img, partial=is_partial)
         except Exception as e:
             logger.error(f"Render trigger failed: {e}")
 
