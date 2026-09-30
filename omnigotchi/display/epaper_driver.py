@@ -89,7 +89,7 @@ class EPaperHardwareDriver:
         logger.warning("Attempting hardware EPD recovery...")
         try:
             self.epd.init()
-            self.epd.Clear(0xFF)
+            self.epd.Clear(0x00)
             self.is_in_partial_mode = False
             logger.info("EPD hardware recovery succeeded.")
         except Exception as e:
@@ -100,7 +100,7 @@ class EPaperHardwareDriver:
             with self.lock:
                 try:
                     self.epd.init()
-                    self.epd.Clear(0xFF)
+                    self.epd.Clear(0x00)
                     self.is_in_partial_mode = False
                 except Exception:
                     pass

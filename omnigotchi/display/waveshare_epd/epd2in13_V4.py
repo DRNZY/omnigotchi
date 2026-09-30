@@ -303,10 +303,6 @@ class EPD:
         self.send_data2(image)  
         self.TurnOnDisplayPart()
 
-        # Keep RAM 0x26 synchronized with current frame for subsequent differential transitions
-        self.send_command(0x26)
-        self.send_data2(image)
-
     '''
     function : Refresh a base image
     parameter:
@@ -314,9 +310,6 @@ class EPD:
     '''
     def displayPartBaseImage(self, image):
         self.send_command(0x24)
-        self.send_data2(image)  
-                
-        self.send_command(0x26)
         self.send_data2(image)  
         self.TurnOnDisplay()
     
