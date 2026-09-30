@@ -7,7 +7,7 @@ import re
 import socket
 import subprocess
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from omnigotchi.modules.ble_radar import BleRadar
 from omnigotchi.modules.wifi_auditor import WiFiAuditor
