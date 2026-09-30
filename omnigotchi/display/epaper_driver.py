@@ -57,17 +57,27 @@ class EPaperHardwareDriver:
             try:
                 buf = self.epd.getbuffer(image)
                 if partial and hasattr(self.epd, "displayPartial"):
-                    self.epd.displayPartial(buf)
-                    self.is_in_partial_mode = True
+                    if not self.is_in_partial_mode:
+                        # Initial frame seed: populate both RAM registers (0x24 & 0x26)
+                        if hasattr(self.epd, "displayPartBaseImage"):
+                            self.epd.displayPartBaseImage(buf)
+                        else:
+                            self.epd.display(buf)
+                        self.is_in_partial_mode = True
+                    else:
+                        self.epd.displayPartial(buf)
                 else:
-                    # When switching from partial to full or doing full refresh, re-init full waveform
-                    if self.is_in_partial_mode or not partial:
+                    # Full refresh: re-init full waveform and prime base image
+                    if hasattr(self.epd, "init"):
                         try:
                             self.epd.init()
                         except Exception:
                             pass
-                    self.epd.display(buf)
-                    self.is_in_partial_mode = False
+                    if hasattr(self.epd, "displayPartBaseImage"):
+                        self.epd.displayPartBaseImage(buf)
+                    else:
+                        self.epd.display(buf)
+                    self.is_in_partial_mode = True
             except Exception as e:
                 logger.error(f"Hardware display write failed: {e}")
                 self.recover()

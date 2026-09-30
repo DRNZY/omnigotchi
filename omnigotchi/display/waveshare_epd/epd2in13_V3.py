@@ -309,10 +309,6 @@ class EPD:
         image : Image data
     '''
     def displayPartial(self, image):
-        epdconfig.digital_write(self.reset_pin, 0)
-        epdconfig.delay_ms(1)
-        epdconfig.digital_write(self.reset_pin, 1)  
-        
         self.SetLut(self.lut_partial_update)
         self.send_command(0x37)
         self.send_data(0x00)

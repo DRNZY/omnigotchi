@@ -29,7 +29,7 @@ class GotchiConfig:
     display_height: int = 122
     rotation: int = 0  # 0, 90, 180, 270
     epd_model: str = "2in13_V4"  # 2in13_V2, 2in13_V3, 2in13_V4, mock
-    partial_refresh_limit: int = 25  # full refresh every N cycles to prevent ghosting
+    partial_refresh_limit: int = 0  # 0 to disable automatic full strobe flashes (clean differential mode)
     
     # Polling & Tick intervals (seconds)
     screen_refresh_interval: float = 3.0
