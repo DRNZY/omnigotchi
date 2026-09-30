@@ -32,7 +32,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
     body { background: var(--bg); color: var(--text); padding: 24px; display: flex; justify-content: center; }
-    .container { max-width: 680px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+    .container { max-width: 720px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
     
     header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
     h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
@@ -70,7 +70,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--text);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       border-radius: 6px;
       cursor: pointer;
@@ -86,12 +86,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .btn-primary:hover { background: #2ea043; }
     .btn-defend { background: #1f6feb; border-color: #388bfd; color: white; }
     .btn-defend:hover { background: #388bfd; }
+    .btn-warning { background: #8e1515; border-color: #f85149; color: white; }
+    .btn-warning:hover { background: #b91c1c; }
 
     /* Stats Grid */
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
     .card-title { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-    .card-val { font-size: 16px; font-weight: 700; }
+    .card-val { font-size: 15px; font-weight: 700; }
     
     /* Security Section */
     .sec-section { background: var(--subtle); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -99,6 +101,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px; }
     .sec-item { background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
     .sec-item-title { color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }
+
+    /* Tactical Deck */
+    .deck-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+    .deck-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   </style>
 </head>
 <body>
@@ -118,51 +124,62 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <img src="/api/screen.png" alt="Live Screen" class="screen-img" id="live-screen">
     </div>
 
+    <!-- Quick Pet Controls -->
     <div class="actions">
       <button onclick="sendAction('pet')">🐾 Pet (+10)</button>
       <button class="btn-primary" onclick="sendAction('feed')">🍕 Feed (+15)</button>
-      <button class="btn-defend" onclick="sendAction('scan')">🛡️ Scan LAN & RF</button>
+      <button onclick="sendAction('mode')">🖥️ Toggle HUD</button>
       <button onclick="sendAction('flip')">🔄 Flip (180°)</button>
     </div>
 
-    <div class="actions" style="grid-template-columns: repeat(2, 1fr);">
-      <button onclick="sendAction('mode')">🖥️ Toggle HUD (Companion / Sentinel)</button>
-      <button onclick="sendAction('recover')">⚡ Unstick & Clear Display</button>
+    <!-- Tactical CyberDeck -->
+    <div class="deck-title">Tactical CyberDeck & Wi-Fi Auditing</div>
+    <div class="deck-grid">
+      <button class="btn-defend" onclick="runTool('audit_wifi')">📡 Audit My Wi-Fi</button>
+      <button class="btn-defend" onclick="runTool('scan_ble')">📶 BLE Radar Scan</button>
+      <button class="btn-defend" onclick="sendAction('scan')">🛡️ Full LAN & RF Scan</button>
+    </div>
+    <div class="deck-grid">
+      <button onclick="window.open('/api/tools/wardrive.csv')">📥 Export Wardrive CSV</button>
+      <button onclick="sendAction('recover')">⚡ Clear E-Ink Screen</button>
+      <button onclick="fetchTelemetry()">🔍 View Raw Telemetry</button>
     </div>
 
+    <!-- Security Matrix -->
     <div class="sec-section">
       <div class="sec-header">
-        <span>CYBERSECURITY SENTINEL & RADAR</span>
+        <span>CYBERSECURITY SENTINEL & DEFENSE POSTURE</span>
         <span id="threat-score-label">THREAT: 0%</span>
       </div>
       <div class="sec-grid">
         <div class="sec-item">
-          <div class="sec-item-title">LAN Devices</div>
+          <div class="sec-item-title">LAN Subnet Nodes</div>
           <div id="lan-val" style="font-weight:700;">-- Nodes</div>
         </div>
         <div class="sec-item">
-          <div class="sec-item-title">Wi-Fi Beacons</div>
+          <div class="sec-item-title">Wi-Fi Environment</div>
           <div id="rf-val" style="font-weight:700;">-- APs</div>
+        </div>
+        <div class="sec-item">
+          <div class="sec-item-title">Wi-Fi Posture Grade</div>
+          <div id="posture-val" style="font-weight:700; color: var(--green);">A+</div>
         </div>
         <div class="sec-item">
           <div class="sec-item-title">ARP & Twin Guard</div>
           <div id="arp-val" style="font-weight:700; color: var(--green);">SECURE</div>
         </div>
         <div class="sec-item">
-          <div class="sec-item-title">SSH Guard</div>
+          <div class="sec-item-title">BLE Radar</div>
+          <div id="ble-val" style="font-weight:700;">-- Devices</div>
+        </div>
+        <div class="sec-item">
+          <div class="sec-item-title">SSH & Port Shield</div>
           <div id="ssh-val" style="font-weight:700;">0 Blocked</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">Open Ports</div>
-          <div id="ports-val" style="font-weight:700;">-- Ports</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">Pi Vitals</div>
-          <div id="soc-val" style="font-weight:700;">--°C</div>
         </div>
       </div>
     </div>
 
+    <!-- Hardware & Mood Grid -->
     <div class="grid">
       <div class="card">
         <div class="card-title">Mood & Personality</div>
@@ -177,8 +194,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <div class="card-val" id="xp-val">0 / 100</div>
       </div>
       <div class="card">
-        <div class="card-title">Ping & Wi-Fi</div>
-        <div class="card-val" id="ping-val">-- ms</div>
+        <div class="card-title">Hardware Telemetry</div>
+        <div class="card-val" id="soc-val">--°C • -- W</div>
       </div>
     </div>
   </div>
@@ -201,19 +218,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           document.getElementById('mood-val').innerText = data.brain.mood + ' ' + data.brain.face;
           document.getElementById('title-val').innerText = data.brain.title;
           document.getElementById('xp-val').innerText = data.brain.xp + ' / ' + data.brain.xp_next;
-          document.getElementById('ping-val').innerText = data.net.ping_ms + ' ms • ' + data.net.wifi_ssid;
 
           if (data.security) {
             document.getElementById('lan-val').innerText = data.security.lan_hosts_count + ' Nodes';
             document.getElementById('rf-val').innerText = data.security.wifi_aps_count + ' APs';
+            document.getElementById('posture-val').innerText = (data.security.wifi_posture?.grade || 'A') + ' (' + (data.security.wifi_posture?.score || 100) + '%)';
             document.getElementById('arp-val').innerText = data.security.arp_spoof_detected ? 'POISON ALERT' : 'SECURE';
             document.getElementById('arp-val').style.color = data.security.arp_spoof_detected ? 'var(--red)' : 'var(--green)';
-            document.getElementById('ssh-val').innerText = data.security.ssh_failed_attempts + ' Blocked';
-            document.getElementById('ports-val').innerText = data.security.open_ports?.length + ' Active';
+            document.getElementById('ble-val').innerText = (data.security.ble_devices_count || 0) + ' Beacons';
+            document.getElementById('ssh-val').innerText = data.security.ssh_failed_attempts + ' Blk / ' + (data.security.open_ports?.length || 0) + ' P';
             document.getElementById('threat-score-label').innerText = 'THREAT: ' + (data.security.threat_score || 0) + '%';
           }
           if (data.net) {
-            document.getElementById('soc-val').innerText = data.net.temp_c + '°C • ' + data.net.cpu_pct + '% CPU';
+            document.getElementById('soc-val').innerText = data.net.temp_c + '°C • ' + (data.net.wattage_w || 0.85) + 'W • ' + data.net.ping_ms + 'ms';
           }
         }
       } catch (e) {}
@@ -225,6 +242,25 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       await fetch('/api/action/' + act, { method: 'POST' });
       updateStats();
       setTimeout(refreshScreen, 150);
+    }
+
+    async function runTool(tool) {
+      const res = await fetch('/api/tools/' + tool, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        alert(tool.toUpperCase() + ' Complete!\n' + JSON.stringify(data, null, 2));
+      }
+      updateStats();
+      setTimeout(refreshScreen, 150);
+    }
+
+    async function fetchTelemetry() {
+      const res = await fetch('/api/security/telemetry');
+      if (res.ok) {
+        const data = await res.json();
+        const win = window.open('', '_blank');
+        win.document.write('<pre style="background:#0b0c10;color:#3fb950;padding:20px;font-family:monospace;">' + JSON.stringify(data, null, 2) + '</pre>');
+      }
     }
   </script>
 </body>
@@ -246,12 +282,20 @@ class GotchiWebServer:
         self.app.router.add_get("/", self._handle_index)
         self.app.router.add_get("/api/screen.png", self._handle_screen_png)
         self.app.router.add_get("/api/stats", self._handle_stats_json)
+        self.app.router.add_get("/api/security/telemetry", self._handle_security_telemetry)
+        self.app.router.add_get("/api/tools/wardrive.csv", self._handle_export_wardrive)
+        
+        # Actions
         self.app.router.add_post("/api/action/pet", self._handle_pet)
         self.app.router.add_post("/api/action/feed", self._handle_feed)
         self.app.router.add_post("/api/action/flip", self._handle_flip)
         self.app.router.add_post("/api/action/scan", self._handle_scan)
         self.app.router.add_post("/api/action/mode", self._handle_mode)
         self.app.router.add_post("/api/action/recover", self._handle_recover)
+        
+        # Tools
+        self.app.router.add_post("/api/tools/audit_wifi", self._handle_audit_wifi)
+        self.app.router.add_post("/api/tools/scan_ble", self._handle_scan_ble)
 
     async def start(self):
         self.runner = web.AppRunner(self.app)
@@ -270,7 +314,6 @@ class GotchiWebServer:
     async def _handle_screen_png(self, request: web.Request) -> web.Response:
         img = self.engine.current_image
         if img is None:
-            # Generate fallback frame if not yet rendered
             self.engine.trigger_render(partial=False)
             img = self.engine.current_image
             if img is None:
@@ -313,6 +356,21 @@ class GotchiWebServer:
             headers={"Cache-Control": "no-cache"},
         )
 
+    async def _handle_security_telemetry(self, request: web.Request) -> web.Response:
+        return web.Response(
+            text=json.dumps(self.engine.security_data, indent=2),
+            content_type="application/json",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    async def _handle_export_wardrive(self, request: web.Request) -> web.Response:
+        csv_data = self.engine.security_module.wifi_auditor.export_wigle_csv()
+        return web.Response(
+            text=csv_data,
+            content_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="omnigotchi_wardrive.csv"'},
+        )
+
     async def _handle_pet(self, request: web.Request) -> web.Response:
         self.engine.brain.pet()
         self.engine.trigger_render()
@@ -330,6 +388,14 @@ class GotchiWebServer:
     async def _handle_scan(self, request: web.Request) -> web.Response:
         sec_data = await self.engine.scan_security()
         return web.Response(text=json.dumps({"ok": True, "security": sec_data}), content_type="application/json")
+
+    async def _handle_audit_wifi(self, request: web.Request) -> web.Response:
+        res = await self.engine.audit_wifi()
+        return web.Response(text=json.dumps({"ok": True, "wifi_audit": res}), content_type="application/json")
+
+    async def _handle_scan_ble(self, request: web.Request) -> web.Response:
+        res = await self.engine.scan_ble()
+        return web.Response(text=json.dumps({"ok": True, "ble_scan": res}), content_type="application/json")
 
     async def _handle_mode(self, request: web.Request) -> web.Response:
         mode = self.engine.toggle_display_mode()

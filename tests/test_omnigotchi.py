@@ -1,8 +1,9 @@
-"""Comprehensive test suite for OmniGotchi."""
+"""Comprehensive test suite for OmniGotchi with WiFi Auditor and BLE Radar."""
 
+import asyncio
 import os
 import tempfile
-import pytest
+import unittest
 from PIL import Image
 
 from omnigotchi.config import GotchiConfig
@@ -10,172 +11,193 @@ from omnigotchi.core.brain import GotchiBrain, GotchiState
 from omnigotchi.display.mock_driver import MockEPaperDriver
 from omnigotchi.display.renderer import GotchiRenderer
 from omnigotchi.modules.audio_module import AudioModule
+from omnigotchi.modules.ble_radar import BleRadar
 from omnigotchi.modules.dev_module import DevModule
 from omnigotchi.modules.net_module import NetModule
 from omnigotchi.modules.security_module import SecurityModule
+from omnigotchi.modules.wifi_auditor import WiFiAuditor
 
 
-def test_brain_state_and_leveling():
-    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
-        state_file = tf.name
+class TestOmniGotchi(unittest.IsolatedAsyncioTestCase):
 
-    try:
-        brain = GotchiBrain(state_file=state_file, name="OmniTest")
-        assert brain.state.name == "OmniTest"
-        assert brain.state.level == 1
-        assert brain.state.xp == 0
+    def test_brain_state_and_leveling(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+            state_file = tf.name
 
-        # Gain XP without level up
-        leveled = brain.gain_xp(50, "test")
-        assert not leveled
-        assert brain.state.xp == 50
-        assert brain.state.level == 1
+        try:
+            brain = GotchiBrain(state_file=state_file, name="OmniTest")
+            self.assertEqual(brain.state.name, "OmniTest")
+            self.assertEqual(brain.state.level, 1)
+            self.assertEqual(brain.state.xp, 0)
 
-        # Gain XP with level up (threshold is 100)
-        leveled = brain.gain_xp(60, "test")
-        assert leveled
-        assert brain.state.level == 2
-        assert brain.state.xp == 10
+            # Gain XP without level up
+            leveled = brain.gain_xp(50, "test")
+            self.assertFalse(leveled)
+            self.assertEqual(brain.state.xp, 50)
+            self.assertEqual(brain.state.level, 1)
 
-        # Test feeding and petting
-        initial_hunger = brain.state.hunger
-        brain.feed(20)
-        assert brain.state.hunger >= initial_hunger
-        assert brain.state.total_feeds == 1
+            # Gain XP with level up (threshold is 100)
+            leveled = brain.gain_xp(60, "test")
+            self.assertTrue(leveled)
+            self.assertEqual(brain.state.level, 2)
+            self.assertEqual(brain.state.xp, 10)
 
-        brain.pet()
-        assert brain.state.total_pets == 1
+            # Test feeding and petting
+            initial_hunger = brain.state.hunger
+            brain.feed(20)
+            self.assertGreaterEqual(brain.state.hunger, initial_hunger)
+            self.assertEqual(brain.state.total_feeds, 1)
 
-        # Test display mode toggle
-        mode = brain.toggle_display_mode()
-        assert mode == "sentinel"
-        mode = brain.toggle_display_mode()
-        assert mode == "companion"
+            brain.pet()
+            self.assertEqual(brain.state.total_pets, 1)
 
-        # Verify state reloaded from file correctly
-        brain2 = GotchiBrain(state_file=state_file, name="OmniTest")
-        assert brain2.state.level == 2
-        assert brain2.state.total_feeds == 1
-        assert brain2.state.total_pets == 1
-    finally:
-        if os.path.exists(state_file):
-            os.unlink(state_file)
+            # Test display mode toggle
+            mode = brain.toggle_display_mode()
+            self.assertEqual(mode, "sentinel")
+            mode = brain.toggle_display_mode()
+            self.assertEqual(mode, "companion")
 
+            # Verify state reloaded from file correctly
+            brain2 = GotchiBrain(state_file=state_file, name="OmniTest")
+            self.assertEqual(brain2.state.level, 2)
+            self.assertEqual(brain2.state.total_feeds, 1)
+            self.assertEqual(brain2.state.total_pets, 1)
+        finally:
+            if os.path.exists(state_file):
+                os.unlink(state_file)
 
-def test_mood_resolution():
-    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
-        state_file = tf.name
+    def test_mood_resolution(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tf:
+            state_file = tf.name
 
-    try:
-        brain = GotchiBrain(state_file=state_file)
+        try:
+            brain = GotchiBrain(state_file=state_file)
 
-        # 1. Test music playing -> MUSIC / DANCING
-        dev_data = {"recent_commits_24h": 0, "is_active_repo": False}
-        audio_data = {"is_playing": True, "title": "IGOR'S THEME", "artist": "Tyler, The Creator"}
-        net_data = {"ping_ms": 15.0, "is_offline": False}
+            # 1. Test music playing -> MUSIC / DANCING
+            dev_data = {"recent_commits_24h": 0, "is_active_repo": False}
+            audio_data = {"is_playing": True, "title": "IGOR'S THEME", "artist": "Tyler, The Creator"}
+            net_data = {"ping_ms": 15.0, "is_offline": False}
 
-        brain.resolve_mood(dev_data, audio_data, net_data)
-        assert brain.state.mood in ("MUSIC", "DANCING")
+            brain.resolve_mood(dev_data, audio_data, net_data)
+            self.assertIn(brain.state.mood, ("MUSIC", "DANCING"))
 
-        # 2. Test high ping / lagging -> LAGGING
-        audio_data["is_playing"] = False
-        net_data["ping_ms"] = 500.0
-        brain.resolve_mood(dev_data, audio_data, net_data)
-        assert brain.state.mood == "LAGGING"
+            # 2. Test high ping / lagging -> LAGGING
+            audio_data["is_playing"] = False
+            net_data["ping_ms"] = 500.0
+            brain.resolve_mood(dev_data, audio_data, net_data)
+            self.assertEqual(brain.state.mood, "LAGGING")
 
-        # 3. Test active coding -> CODING
-        net_data["ping_ms"] = 20.0
-        dev_data["recent_commits_24h"] = 5
-        dev_data["is_active_repo"] = True
-        brain.resolve_mood(dev_data, audio_data, net_data)
-        assert brain.state.mood == "CODING"
+            # 3. Test active coding -> CODING
+            net_data["ping_ms"] = 20.0
+            dev_data["recent_commits_24h"] = 5
+            dev_data["is_active_repo"] = True
+            brain.resolve_mood(dev_data, audio_data, net_data)
+            self.assertEqual(brain.state.mood, "CODING")
 
-        # 4. Test security alert -> DEFCON
-        sec_data = {"defcon_level": 2, "defcon_status": "EVIL TWIN DETECTED", "evil_twin_detected": True}
-        brain.resolve_mood(dev_data, audio_data, net_data, security_data=sec_data)
-        assert brain.state.mood == "DEFCON"
-    finally:
-        if os.path.exists(state_file):
-            os.unlink(state_file)
+            # 4. Test security alert -> DEFCON
+            sec_data = {"defcon_level": 2, "defcon_status": "EVIL TWIN DETECTED", "evil_twin_detected": True}
+            brain.resolve_mood(dev_data, audio_data, net_data, security_data=sec_data)
+            self.assertEqual(brain.state.mood, "DEFCON")
+        finally:
+            if os.path.exists(state_file):
+                os.unlink(state_file)
 
-
-def test_canvas_renderer():
-    renderer = GotchiRenderer(width=250, height=122)
-    state = GotchiState(
-        name="Omni",
-        level=3,
-        xp=45,
-        xp_next=100,
-        mood="HAPPY",
-        face="( ^‿^ )",
-        quote="Testing 1-bit E-Ink graphics!",
-    )
-    dev_data = {"recent_commits_24h": 2, "followers": 24, "streak_days": 5}
-    audio_data = {"is_playing": False}
-    net_data = {"ping_ms": 18.2, "cpu_pct": 14, "temp_c": 42.0, "ram_pct": 28}
-    sec_data = {"defcon_level": 5, "lan_hosts_count": 8, "wifi_aps_count": 3}
-
-    # Companion mode
-    img = renderer.render(state, dev_data, audio_data, net_data, sec_data)
-    assert isinstance(img, Image.Image)
-    assert img.size == (250, 122)
-    assert img.mode == "1"
-
-    # Sentinel mode
-    state.display_mode = "sentinel"
-    img_sentinel = renderer.render(state, dev_data, audio_data, net_data, sec_data)
-    assert isinstance(img_sentinel, Image.Image)
-    assert img_sentinel.size == (250, 122)
-    assert img_sentinel.mode == "1"
-
-
-def test_mock_driver_and_ascii():
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tf:
-        preview_path = tf.name
-
-    try:
-        driver = MockEPaperDriver(width=250, height=122, preview_path=preview_path)
+    def test_canvas_renderer(self):
         renderer = GotchiRenderer(width=250, height=122)
-        state = GotchiState()
-        img = renderer.render(state, {}, {}, {"ping_ms": 12})
+        state = GotchiState(
+            name="Omni",
+            level=3,
+            xp=45,
+            xp_next=100,
+            mood="HAPPY",
+            face="( ^ _ ^ )",
+            quote="Testing 1-bit E-Ink graphics!",
+        )
+        dev_data = {"recent_commits_24h": 2, "followers": 24, "streak_days": 5}
+        audio_data = {"is_playing": False}
+        net_data = {"ping_ms": 18.2, "cpu_pct": 14, "temp_c": 42.0, "ram_pct": 28}
+        sec_data = {"defcon_level": 5, "lan_hosts_count": 8, "wifi_aps_count": 3}
 
-        driver.display(img)
-        assert os.path.exists(preview_path)
-        assert os.path.getsize(preview_path) > 0
+        # Companion mode
+        img = renderer.render(state, dev_data, audio_data, net_data, sec_data)
+        self.assertIsInstance(img, Image.Image)
+        self.assertEqual(img.size, (250, 122))
+        self.assertEqual(img.mode, "1")
 
-        ascii_output = driver.render_ascii_terminal(img)
-        assert isinstance(ascii_output, str)
-        assert len(ascii_output) > 100
-        assert "┌" in ascii_output
-        assert "└" in ascii_output
-    finally:
-        if os.path.exists(preview_path):
-            os.unlink(preview_path)
+        # Sentinel mode
+        state.display_mode = "sentinel"
+        img_sentinel = renderer.render(state, dev_data, audio_data, net_data, sec_data)
+        self.assertIsInstance(img_sentinel, Image.Image)
+        self.assertEqual(img_sentinel.size, (250, 122))
+        self.assertEqual(img_sentinel.mode, "1")
+
+    def test_mock_driver_and_ascii(self):
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tf:
+            preview_path = tf.name
+
+        try:
+            driver = MockEPaperDriver(width=250, height=122, preview_path=preview_path)
+            renderer = GotchiRenderer(width=250, height=122)
+            state = GotchiState()
+            img = renderer.render(state, {}, {}, {"ping_ms": 12})
+
+            driver.display(img)
+            self.assertTrue(os.path.exists(preview_path))
+            self.assertGreater(os.path.getsize(preview_path), 0)
+
+            ascii_output = driver.render_ascii_terminal(img)
+            self.assertIsInstance(ascii_output, str)
+            self.assertGreater(len(ascii_output), 100)
+            self.assertIn("┌", ascii_output)
+            self.assertIn("└", ascii_output)
+        finally:
+            if os.path.exists(preview_path):
+                os.unlink(preview_path)
+
+    async def test_wifi_auditor_and_wardriving(self):
+        auditor = WiFiAuditor()
+        res = await auditor.scan_and_audit()
+        self.assertIsInstance(res, dict)
+        self.assertIn("posture", res)
+        self.assertIn("spectrum", res)
+        self.assertIn("clones", res)
+
+        csv_out = auditor.export_wigle_csv()
+        self.assertIn("WigleWifi-1.4", csv_out)
+
+    async def test_ble_radar(self):
+        radar = BleRadar()
+        res = await radar.scan(duration_s=0.5)
+        self.assertIsInstance(res, dict)
+        self.assertIn("flood_detected", res)
+        self.assertIn("flood_alert_msg", res)
+
+    async def test_modules_polling(self):
+        dev_mod = DevModule(username="DRNZY")
+        dev_stats = await dev_mod.poll()
+        self.assertIsInstance(dev_stats, dict)
+        self.assertIn("followers", dev_stats)
+        self.assertIn("recent_commits_24h", dev_stats)
+
+        audio_mod = AudioModule(cadence_url="http://127.0.0.1:9999")
+        audio_stats = await audio_mod.poll()
+        self.assertIsInstance(audio_stats, dict)
+        self.assertFalse(audio_stats["is_playing"])
+
+        net_mod = NetModule(target_host="1.1.1.1")
+        net_stats = await net_mod.poll()
+        self.assertIsInstance(net_stats, dict)
+        self.assertIn("ping_ms", net_stats)
+        self.assertIn("cpu_pct", net_stats)
+
+        sec_mod = SecurityModule()
+        sec_stats = await sec_mod.poll()
+        self.assertIsInstance(sec_stats, dict)
+        self.assertIn("defcon_level", sec_stats)
+        self.assertIn("lan_hosts_count", sec_stats)
+        self.assertIn("wifi_aps_count", sec_stats)
+        self.assertIn("active_shields", sec_stats)
 
 
-@pytest.mark.asyncio
-async def test_modules_polling():
-    dev_mod = DevModule(username="DRNZY")
-    dev_stats = await dev_mod.poll()
-    assert isinstance(dev_stats, dict)
-    assert "followers" in dev_stats
-    assert "recent_commits_24h" in dev_stats
-
-    audio_mod = AudioModule(cadence_url="http://127.0.0.1:9999")
-    audio_stats = await audio_mod.poll()
-    assert isinstance(audio_stats, dict)
-    assert audio_stats["is_playing"] is False
-
-    net_mod = NetModule(target_host="1.1.1.1")
-    net_stats = await net_mod.poll()
-    assert isinstance(net_stats, dict)
-    assert "ping_ms" in net_stats
-    assert "cpu_pct" in net_stats
-
-    sec_mod = SecurityModule()
-    sec_stats = await sec_mod.poll()
-    assert isinstance(sec_stats, dict)
-    assert "defcon_level" in sec_stats
-    assert "lan_hosts_count" in sec_stats
-    assert "wifi_aps_count" in sec_stats
-    assert "active_shields" in sec_stats
+if __name__ == "__main__":
+    unittest.main()

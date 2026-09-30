@@ -135,6 +135,27 @@ class GotchiEngine:
         self.trigger_render(partial=False)
         return self.security_data
 
+    async def audit_wifi(self) -> dict:
+        """Triggers an on-demand deep Wi-Fi security audit and awards XP."""
+        wifi_data = await self.security_module.wifi_auditor.scan_and_audit()
+        self.security_data["wifi_posture"] = wifi_data["posture"]
+        self.security_data["connected_wifi_audit"] = wifi_data["connected_audit"]
+        self.security_data["channel_spectrum"] = wifi_data["spectrum"]
+        self.brain.add_xp(25)
+        self.trigger_render(partial=False)
+        return wifi_data
+
+    async def scan_ble(self) -> dict:
+        """Triggers an on-demand BLE radar scan and awards XP."""
+        ble_data = await self.security_module.ble_radar.scan()
+        self.security_data["ble_devices_count"] = ble_data["total_devices_seen"]
+        self.security_data["ble_devices"] = ble_data["recent_devices"]
+        self.security_data["ble_flood_detected"] = ble_data["flood_detected"]
+        self.security_data["ble_alert_msg"] = ble_data["flood_alert_msg"]
+        self.brain.add_xp(20)
+        self.trigger_render(partial=False)
+        return ble_data
+
     def recover_display(self):
         """Forces display driver recovery and redraws full frame."""
         if hasattr(self.display_driver, "recover"):

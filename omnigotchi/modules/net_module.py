@@ -85,20 +85,22 @@ class NetModule:
         """Measures TCP connection latency in milliseconds."""
         loop = asyncio.get_event_loop()
         start = time.perf_counter()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setblocking(False)
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setblocking(False)
-            sock.settimeout(self.timeout_s)
-            
             await asyncio.wait_for(
                 loop.sock_connect(sock, (self.target_host, 53)),
                 timeout=self.timeout_s
             )
-            sock.close()
             elapsed = (time.perf_counter() - start) * 1000.0
             return round(elapsed, 1)
         except Exception:
             return 999.0
+        finally:
+            try:
+                sock.close()
+            except Exception:
+                pass
 
     def _get_network_bytes(self) -> tuple:
         """Reads cumulative RX/TX bytes from /proc/net/dev."""

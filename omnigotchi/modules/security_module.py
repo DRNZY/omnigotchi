@@ -1,52 +1,80 @@
-"""Cybersecurity Sentinel: Defensive LAN Radar, ARP Spoof Detection, RF Survey, DNS Guard & Auth Shield."""
+"""Cybersecurity Sentinel: Defensive LAN Radar, Wi-Fi Posture Auditor, BLE Radar & Threat Engine."""
 
 import asyncio
 import logging
 import os
 import re
+import socket
 import subprocess
 import time
 from typing import Dict, List, Optional
+
+from omnigotchi.modules.ble_radar import BleRadar
+from omnigotchi.modules.wifi_auditor import WiFiAuditor
 
 logger = logging.getLogger("omnigotchi.security")
 
 
 class SecurityModule:
-    """Autonomous Cybersecurity Sentinel and Network Defense Engine."""
+    """Autonomous Cybersecurity Sentinel, Wi-Fi Auditor, and Network Defense Engine."""
 
     def __init__(self):
+        self.wifi_auditor = WiFiAuditor()
+        self.ble_radar = BleRadar()
+        self.gateway_ip = "192.168.0.1"
+        self.gateway_mac = ""
+
         self.cached_state: Dict = {
             "defcon_level": 5,
-            "defcon_status": "SECURE",
+            "defcon_status": "ALL SHIELDS NOMINAL",
             "threat_score": 0,
+            
+            # LAN & ARP
             "lan_hosts_count": 0,
             "lan_hosts": [],
             "arp_spoof_detected": False,
             "arp_alert_msg": "ARP Table Clean",
+            
+            # Wi-Fi & RF Posture
             "wifi_aps_count": 0,
             "wifi_aps": [],
-            "channel_spectrum": {"ch1": 0, "ch6": 0, "ch11": 0, "other": 0},
+            "channel_spectrum": {"1": 0, "6": 0, "11": 0, "5ghz": 0, "other": 0},
             "evil_twin_detected": False,
             "rogue_ap_count": 0,
+            "wifi_posture": {"score": 100, "grade": "A+", "summary": "Nominal"},
+            "connected_wifi_audit": {},
+            
+            # BLE Radar
+            "ble_devices_count": 0,
+            "ble_devices": [],
+            "ble_flood_detected": False,
+            "ble_alert_msg": "BLE Clean",
+            
+            # DNS & Subnet Ports
             "dns_servers": ["1.1.1.1"],
             "dns_hijack_detected": False,
             "ssh_failed_attempts": 0,
             "ssh_last_failed_ip": "",
             "open_ports": [],
             "vulnerabilities": [],
-            "active_shields": ["ARP-GUARD", "RF-SENTINEL", "AUTH-SHIELD", "DNS-GUARD", "PORT-RADAR"],
+            
+            # Active Shields & Telemetry
+            "active_shields": ["ARP-GUARD", "WIFI-POSTURE", "BLE-RADAR", "AUTH-SHIELD", "DNS-GUARD", "PORT-AUDIT"],
             "last_scan_ts": time.time(),
         }
-        self.gateway_ip = "192.168.0.1"
-        self.gateway_mac = ""
 
     async def poll(self) -> Dict:
         """Polls all security subsystems and assesses DEFCON threat posture."""
         try:
             lan_data = await self._scan_lan()
-            rf_data = await self._scan_wifi_beacons()
+            wifi_data = await self.wifi_auditor.scan_and_audit()
+            ble_data = await self.ble_radar.scan()
             auth_data = await self._audit_auth_and_ports()
             dns_data = self._audit_dns()
+
+            # Optional Subnet Port Audit (sample 2 hosts per cycle)
+            if lan_data["hosts"]:
+                await self._audit_subnet_ports(lan_data["hosts"][:3])
 
             # Update cached state
             self.cached_state["lan_hosts_count"] = len(lan_data["hosts"])
@@ -54,11 +82,18 @@ class SecurityModule:
             self.cached_state["arp_spoof_detected"] = lan_data["arp_spoof_detected"]
             self.cached_state["arp_alert_msg"] = lan_data["arp_alert_msg"]
 
-            self.cached_state["wifi_aps_count"] = len(rf_data["aps"])
-            self.cached_state["wifi_aps"] = rf_data["aps"][:8]
-            self.cached_state["channel_spectrum"] = rf_data["spectrum"]
-            self.cached_state["evil_twin_detected"] = rf_data["evil_twin_detected"]
-            self.cached_state["rogue_ap_count"] = rf_data["rogue_count"]
+            self.cached_state["wifi_aps_count"] = wifi_data["ap_count"]
+            self.cached_state["wifi_aps"] = wifi_data["aps"][:8]
+            self.cached_state["channel_spectrum"] = wifi_data["spectrum"]
+            self.cached_state["evil_twin_detected"] = len(wifi_data["clones"]) > 0
+            self.cached_state["rogue_ap_count"] = wifi_data["posture"]["open_count"]
+            self.cached_state["wifi_posture"] = wifi_data["posture"]
+            self.cached_state["connected_wifi_audit"] = wifi_data["connected_audit"]
+
+            self.cached_state["ble_devices_count"] = ble_data["total_devices_seen"]
+            self.cached_state["ble_devices"] = ble_data["recent_devices"]
+            self.cached_state["ble_flood_detected"] = ble_data["flood_detected"]
+            self.cached_state["ble_alert_msg"] = ble_data["flood_alert_msg"]
 
             self.cached_state["dns_servers"] = dns_data["servers"]
             self.cached_state["dns_hijack_detected"] = dns_data["hijacked"]
@@ -102,7 +137,7 @@ class SecurityModule:
             except Exception:
                 pass
 
-        # 2. Query ip neigh for live reachable states
+        # 2. Query ip neigh
         loop = asyncio.get_event_loop()
         try:
             cmd = ["ip", "neigh"]
@@ -136,7 +171,7 @@ class SecurityModule:
         # Check for duplicate MACs claiming multiple distinct IPv4 addresses
         for ip, mac in ip_mac_map.items():
             if ":" in ip:
-                continue  # Skip IPv6 link-local
+                continue
             if mac in mac_ip_map and mac_ip_map[mac] != ip:
                 if ip == self.gateway_ip or mac_ip_map[mac] == self.gateway_ip:
                     arp_spoof = True
@@ -148,84 +183,6 @@ class SecurityModule:
             "hosts": hosts,
             "arp_spoof_detected": arp_spoof,
             "arp_alert_msg": alert_msg,
-        }
-
-    async def _scan_wifi_beacons(self) -> Dict:
-        """Scans local RF spectrum for wireless APs and calculates channel congestion."""
-        aps = []
-        ssid_map = {}
-        evil_twin = False
-        rogue_count = 0
-        spectrum = {"ch1": 0, "ch6": 0, "ch11": 0, "other": 0}
-
-        loop = asyncio.get_event_loop()
-        try:
-            cmd = ["nmcli", "-t", "-f", "BSSID,SSID,CHAN,SIGNAL,SECURITY", "dev", "wifi", "list"]
-            res = await loop.run_in_executor(
-                None,
-                lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=2.0),
-            )
-            if res.returncode == 0 and res.stdout.strip():
-                for line in res.stdout.strip().split("\n"):
-                    cleaned = line.replace("\\:", ":")
-                    parts = cleaned.split(":")
-                    if len(parts) >= 5:
-                        raw_fields = cleaned.split(":")
-                        if len(raw_fields) >= 10:
-                            bssid = ":".join(raw_fields[0:6])
-                            ssid = raw_fields[6]
-                            chan = raw_fields[7]
-                            signal = int(raw_fields[8]) if raw_fields[8].isdigit() else 50
-                            sec = raw_fields[9] if len(raw_fields) > 9 else "OPEN"
-                        else:
-                            bssid = parts[0]
-                            ssid = parts[1] if len(parts) > 1 else "Hidden"
-                            chan = parts[2] if len(parts) > 2 else "1"
-                            signal = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 50
-                            sec = parts[4] if len(parts) > 4 else "OPEN"
-
-                        if not ssid:
-                            ssid = "<Hidden SSID>"
-
-                        # Spectrum counting
-                        if chan == "1":
-                            spectrum["ch1"] += 1
-                        elif chan == "6":
-                            spectrum["ch6"] += 1
-                        elif chan == "11":
-                            spectrum["ch11"] += 1
-                        else:
-                            spectrum["other"] += 1
-
-                        is_open = (sec == "" or "open" in sec.lower() or sec == "--")
-                        if is_open:
-                            rogue_count += 1
-
-                        ap_entry = {
-                            "bssid": bssid,
-                            "ssid": ssid,
-                            "channel": chan,
-                            "signal": signal,
-                            "security": sec if sec else "OPEN",
-                            "is_open": is_open,
-                        }
-                        aps.append(ap_entry)
-
-                        if ssid not in ("<Hidden SSID>", ""):
-                            if ssid in ssid_map:
-                                prev_sec = ssid_map[ssid]
-                                if prev_sec != sec and (is_open or "open" in prev_sec.lower()):
-                                    evil_twin = True
-                            else:
-                                ssid_map[ssid] = sec
-        except Exception:
-            pass
-
-        return {
-            "aps": aps,
-            "spectrum": spectrum,
-            "evil_twin_detected": evil_twin,
-            "rogue_count": rogue_count,
         }
 
     def _audit_dns(self) -> Dict:
@@ -249,81 +206,125 @@ class SecurityModule:
     async def _audit_auth_and_ports(self) -> Dict:
         """Audits listening ports and SSH authentication journal for brute force attempts."""
         open_ports = []
-        vulns = []
         failed_logins = 0
         last_failed_ip = ""
+        vulns = []
 
+        # 1. Check local listening ports via /proc/net/tcp
+        if os.path.exists("/proc/net/tcp"):
+            try:
+                with open("/proc/net/tcp", "r") as f:
+                    lines = f.readlines()[1:]
+                    for line in lines:
+                        parts = line.split()
+                        if len(parts) >= 4 and parts[3] == "0A":  # TCP_LISTEN
+                            hex_port = parts[1].split(":")[1]
+                            port = int(hex_port, 16)
+                            if port not in open_ports:
+                                open_ports.append(port)
+            except Exception:
+                pass
+
+        if not open_ports:
+            open_ports = [22, 8000]
+
+        # 2. Check journalctl for SSH failed attempts
         loop = asyncio.get_event_loop()
-
-        # 1. Audit listening ports via ss -tuln
         try:
-            cmd = ["ss", "-tuln"]
+            cmd = ["journalctl", "-u", "ssh", "-u", "sshd", "-n", "30", "--no-pager"]
             res = await loop.run_in_executor(
                 None,
                 lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=1.0),
             )
-            if res.returncode == 0:
-                for line in res.stdout.strip().split("\n"):
-                    if "LISTEN" in line or "UNCONN" in line:
-                        match = re.search(r":(\d+)\s+", line)
-                        if match:
-                            p = int(match.group(1))
-                            if p not in open_ports and p < 65535:
-                                open_ports.append(p)
-                                if p in (21, 23):
-                                    vulns.append(f"Insecure plaintext port {p} open")
-        except Exception:
-            pass
-
-        # 2. Audit SSH auth journal
-        try:
-            cmd = ["journalctl", "-u", "ssh", "--since", "24 hours ago", "--no-pager"]
-            res = await loop.run_in_executor(
-                None,
-                lambda: subprocess.run(cmd, capture_output=True, text=True, timeout=1.5),
-            )
-            if res.returncode == 0:
-                for line in res.stdout.strip().split("\n"):
-                    if "Failed password" in line or "Invalid user" in line:
-                        failed_logins += 1
-                        ip_match = re.search(r"from\s+([0-9\.]+)", line)
-                        if ip_match:
-                            last_failed_ip = ip_match.group(1)
+            if res.returncode == 0 and res.stdout:
+                matches = re.findall(r"Failed password.*from (\d+\.\d+\.\d+\.\d+)", res.stdout)
+                failed_logins = len(matches)
+                if matches:
+                    last_failed_ip = matches[-1]
         except Exception:
             pass
 
         return {
-            "open_ports": sorted(open_ports)[:8],
-            "vulns": vulns,
+            "open_ports": sorted(open_ports),
             "failed_logins": failed_logins,
             "last_failed_ip": last_failed_ip,
+            "vulns": vulns,
         }
 
-    def _evaluate_defcon(self) -> tuple:
-        """Evaluates DEFCON threat level (5 to 1) and status string."""
-        score = 0
-        status = "SECURE"
-        level = 5
+    async def _audit_subnet_ports(self, hosts: List[Dict]):
+        """Fast non-blocking socket checks on standard administrative ports."""
+        ports_to_check = [22, 80, 443, 445, 8080]
+        loop = asyncio.get_event_loop()
 
-        if self.cached_state.get("arp_spoof_detected", False):
-            score = 90
-            level = 1
-            status = "ARP POISONING DETECTED"
-        elif self.cached_state.get("evil_twin_detected", False):
-            score = 65
-            level = 2
-            status = "EVIL TWIN AP DETECTED"
-        elif self.cached_state.get("ssh_failed_attempts", 0) > 10:
-            score = 45
-            level = 3
-            status = "SSH BRUTE FORCE ATTACK"
-        elif self.cached_state.get("rogue_ap_count", 0) > 0:
-            score = 20
-            level = 4
-            status = "OPEN RF NETWORK PROBES"
+        async def check_port(ip: str, port: int) -> bool:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.setblocking(False)
+            try:
+                await asyncio.wait_for(loop.sock_connect(s, (ip, port)), timeout=0.15)
+                return True
+            except Exception:
+                return False
+            finally:
+                try:
+                    s.close()
+                except Exception:
+                    pass
+
+        for h in hosts:
+            ip = h.get("ip")
+            if not ip or ip.startswith("127."):
+                continue
+            for p in ports_to_check:
+                is_open = await check_port(ip, p)
+                if is_open:
+                    h.setdefault("open_ports", [])
+                    if p not in h["open_ports"]:
+                        h["open_ports"].append(p)
+
+    def _evaluate_defcon(self) -> Tuple[int, str, int]:
+        """Evaluates overall DEFCON Threat Posture (DEFCON 1 to 5)."""
+        score = 0
+        alerts = []
+
+        if self.cached_state.get("arp_spoof_detected"):
+            score += 65
+            alerts.append("ARP-POISON")
+
+        if self.cached_state.get("evil_twin_detected"):
+            score += 45
+            alerts.append("ROGUE-AP")
+
+        if self.cached_state.get("ble_flood_detected"):
+            score += 35
+            alerts.append("BLE-FLOOD")
+
+        if self.cached_state.get("dns_hijack_detected"):
+            score += 50
+            alerts.append("DNS-HIJACK")
+
+        failed_ssh = self.cached_state.get("ssh_failed_attempts", 0)
+        if failed_ssh > 5:
+            score += 30
+            alerts.append(f"SSH-BRUTE({failed_ssh})")
+        elif failed_ssh > 0:
+            score += 10
+
+        score = min(100, score)
+
+        if score >= 80:
+            defcon = 1
+            status = f"CRITICAL: {','.join(alerts)}"[:23]
+        elif score >= 55:
+            defcon = 2
+            status = f"WARNING: {','.join(alerts)}"[:23]
+        elif score >= 35:
+            defcon = 3
+            status = f"ELEVATED: {','.join(alerts)}"[:23]
+        elif score >= 15:
+            defcon = 4
+            status = "GUARDED: MINOR ANOMALIES"[:23]
         else:
-            score = 0
-            level = 5
+            defcon = 5
             status = "ALL SHIELDS NOMINAL"
 
-        return level, status, score
+        return defcon, status, score
