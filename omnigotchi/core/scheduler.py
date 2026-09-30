@@ -141,7 +141,7 @@ class GotchiEngine:
         self.security_data["wifi_posture"] = wifi_data["posture"]
         self.security_data["connected_wifi_audit"] = wifi_data["connected_audit"]
         self.security_data["channel_spectrum"] = wifi_data["spectrum"]
-        self.brain.add_xp(25)
+        self.brain.gain_xp(25, "wifi_audit")
         self.trigger_render(partial=False)
         return wifi_data
 
@@ -152,7 +152,7 @@ class GotchiEngine:
         self.security_data["ble_devices"] = ble_data["recent_devices"]
         self.security_data["ble_flood_detected"] = ble_data["flood_detected"]
         self.security_data["ble_alert_msg"] = ble_data["flood_alert_msg"]
-        self.brain.add_xp(20)
+        self.brain.gain_xp(20, "ble_scan")
         self.trigger_render(partial=False)
         return ble_data
 

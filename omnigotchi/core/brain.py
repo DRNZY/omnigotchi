@@ -115,6 +115,9 @@ class GotchiBrain:
         self._save()
         return leveled_up
 
+    def add_xp(self, amount: int, reason: str = "") -> bool:
+        return self.gain_xp(amount, reason)
+
     def _update_title(self):
         current_title = TITLES[0][1]
         for min_lvl, title in TITLES:
