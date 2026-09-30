@@ -123,15 +123,18 @@ class SecurityModule:
         except Exception:
             pass
 
-        # Check for duplicate MACs claiming multiple distinct IPs (ARP Spoofing signature)
+        # Check for duplicate MACs claiming multiple distinct IPv4 addresses (ARP Spoofing signature)
         for ip, mac in ip_mac_map.items():
+            if ":" in ip:
+                continue  # Skip IPv6 addresses when verifying IPv4 ARP collisions
             if mac in mac_ip_map and mac_ip_map[mac] != ip:
-                # Same MAC claiming multiple IPs
+                # Same MAC claiming multiple IPv4 addresses
                 if ip == self.gateway_ip or mac_ip_map[mac] == self.gateway_ip:
                     arp_spoof = True
                     alert_msg = f"ARP Poisoning detected on {ip} (MAC: {mac})"
             else:
                 mac_ip_map[mac] = ip
+
 
         return {
             "hosts": hosts,
