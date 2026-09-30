@@ -216,8 +216,8 @@ class GotchiBrain:
 
         self.state.mood = target_mood
 
-        # Update face & quote periodically (every 10s or when mood changes)
-        if (now - self.last_quote_change) > 10.0 or self.state.face == "":
+        # Update face & quote periodically (every 3.5s or when mood changes)
+        if (now - self.last_quote_change) > 3.5 or self.state.face == "":
             self.state.face = get_random_face(target_mood)
             self.state.quote = get_random_quote(target_mood, context)
             self.last_quote_change = now

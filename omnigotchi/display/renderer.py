@@ -1,7 +1,6 @@
-"""OmniGotchi E-Ink Canvas Renderer (250x122 monochrome 1-bit)."""
+"""Pwnagotchi-inspired E-Ink Canvas Renderer (250x122 monochrome 1-bit)."""
 
 import datetime
-import math
 from typing import Dict, Optional
 from PIL import Image, ImageDraw, ImageFont
 
@@ -38,7 +37,7 @@ class GotchiRenderer:
             try:
                 self.font_small = ImageFont.truetype(p, 9)
                 self.font_medium = ImageFont.truetype(p, 10)
-                self.font_face = ImageFont.truetype(p, 14)
+                self.font_face = ImageFont.truetype(p, 15)
                 break
             except Exception:
                 continue
@@ -50,7 +49,6 @@ class GotchiRenderer:
             except Exception:
                 continue
 
-        # Fallback to default bitmap font if no TTF found
         if self.font_small is None:
             self.font_small = ImageFont.load_default()
         if self.font_medium is None:
@@ -89,87 +87,82 @@ class GotchiRenderer:
         net_data: Dict,
         security_data: Dict,
     ):
-        # 1. Top Header Bar
+        # 1. Top Header Bar (No seconds: strictly HH:MM)
+        now_str = datetime.datetime.now().strftime("%H:%M")
         name_tag = f"{state.name.upper()} Lv.{state.level}"
         draw.text((4, 2), name_tag, font=self.font_bold, fill=0)
 
-        # XP Bar
+        # XP Bar [40px]
         xp_pct = min(1.0, max(0.0, state.xp / max(1, state.xp_next)))
-        bar_x, bar_y, bar_w, bar_h = 75, 4, 38, 6
+        bar_x, bar_y, bar_w, bar_h = 74, 4, 36, 6
         draw.rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], outline=0, fill=255)
         fill_w = int(bar_w * xp_pct)
         if fill_w > 0:
             draw.rectangle([bar_x + 1, bar_y + 1, bar_x + fill_w, bar_y + bar_h - 1], fill=0)
 
-        # Defcon & Clock
-        now_str = datetime.datetime.now().strftime("%H:%M")
+        # Defcon & Clock (Right aligned)
         defcon_str = f"DEFCON {state.defcon}"
-        draw.text((self.width - 86, 2), f"{defcon_str} {now_str}", font=self.font_small, fill=0)
-
-        # Top separator
+        draw.text((self.width - 86, 2), f"{defcon_str}  {now_str}", font=self.font_small, fill=0)
         draw.line([(0, 14), (self.width, 14)], fill=0, width=1)
 
-        # 2. Center Character Stage
-        face_str = state.face or "( ^‿^ )"
-        draw.text((10, 34), face_str, font=self.font_face, fill=0)
+        # 2. Pwnagotchi-style Center Avatar Card (No body, just big expressive face)
+        ax1, ay1, ax2, ay2 = 4, 18, 86, 99
+        draw.rounded_rectangle([ax1, ay1, ax2, ay2], radius=4, outline=0, fill=255, width=1)
 
-        if state.mood in ("DANCING", "MUSIC"):
-            body_lines = ["  \\(   )/", "   /   \\ "]
-        elif state.mood == "SLEEPING":
-            body_lines = ["  ( -_- )", "  zzZZ..."]
-        elif state.mood == "CODING":
-            body_lines = ["  [💻=⌨️]", "  /     \\"]
-        elif state.mood in ("SENTINEL", "DEFCON", "SHIELD"):
-            body_lines = ["  [🛡️=📡]", "   /   \\ "]
-        else:
-            body_lines = ["  (  o  )", "   /   \\ "]
+        # Center the cute face
+        face_str = state.face or "( ◕‿◕ )"
+        # Face display centered vertically
+        draw.text((ax1 + 6, ay1 + 22), face_str, font=self.font_face, fill=0)
 
-        draw.text((14, 56), body_lines[0], font=self.font_small, fill=0)
-        draw.text((14, 68), body_lines[1], font=self.font_small, fill=0)
+        # Mood badge pill under the face
+        mood_text = f"[{state.mood[:8]}]"
+        draw.text((ax1 + 12, ay2 - 16), mood_text, font=self.font_small, fill=0)
 
-        mood_badge = f"[{state.mood}]"
-        draw.text((12, 84), mood_badge, font=self.font_small, fill=0)
-
-        # 3. Speech Bubble
-        bx1, by1, bx2, by2 = 92, 20, 244, 98
+        # 3. Speech Bubble on Right
+        bx1, by1, bx2, by2 = 92, 18, 245, 99
         draw.rounded_rectangle([bx1, by1, bx2, by2], radius=4, outline=0, fill=255, width=1)
-        draw.polygon([(bx1, 48), (bx1 - 5, 52), (bx1, 56)], fill=255, outline=0)
-        draw.line([(bx1, 49), (bx1, 55)], fill=255, width=1)
+        # Bubble pointer
+        draw.polygon([(bx1, 46), (bx1 - 5, 50), (bx1, 54)], fill=255, outline=0)
+        draw.line([(bx1, 47), (bx1, 53)], fill=255, width=1)
 
+        # Wrapped dialogue text
         quote = state.quote or "..."
         lines = self._wrap_text(quote, max_chars=22)
         y_offset = by1 + 6
         for line in lines[:4]:
-            draw.text((bx1 + 8, y_offset), line, font=self.font_medium, fill=0)
+            draw.text((bx1 + 7, y_offset), line, font=self.font_medium, fill=0)
             y_offset += 14
 
-        # 4. Footer
+        # 4. Bottom Footer Bar (Cycling multi-source vitals)
         draw.line([(0, 103), (self.width, 103)], fill=0, width=1)
-        self.footer_cycle = (self.footer_cycle + 1) % 18
+        self.footer_cycle = (self.footer_cycle + 1) % 16
         is_playing = audio_data.get("is_playing", False)
 
         if is_playing:
             track = audio_data.get("title", "Track")[:18]
             artist = audio_data.get("artist", "Artist")[:14]
             fmt = audio_data.get("format", "FLAC")
-            footer_text = f"♫ {track} - {artist} [{fmt}]"
-        elif self.footer_cycle < 6:
-            # Security summary
+            footer_text = f"AUD: {track} - {artist} [{fmt}]"
+        elif self.footer_cycle < 5:
+            # Security Status
             lan_n = security_data.get("lan_hosts_count", 0)
             rf_n = security_data.get("wifi_aps_count", 0)
             status = security_data.get("defcon_status", "SECURE")[:14]
-            footer_text = f"DEF: {status} | LAN:{lan_n} | RF:{rf_n}"
-        elif self.footer_cycle < 12:
+            footer_text = f"SEC: {status} | LAN:{lan_n} | RF:{rf_n}"
+        elif self.footer_cycle < 10:
+            # System Vitals & Wattage
+            cpu = net_data.get("cpu_pct", 10)
+            ram = net_data.get("ram_pct", 30)
+            temp = int(net_data.get("temp_c", 40.0))
+            watt = net_data.get("wattage_w", 0.85)
+            footer_text = f"SYS: CPU {cpu}% | RAM {ram}% | {temp}C | {watt}W"
+        else:
+            # Dev Stats
             commits = dev_data.get("recent_commits_24h", 0)
             streak = dev_data.get("streak_days", 1)
             footer_text = f"DEV: {commits} commits 24h | Streak: {streak}d"
-        else:
-            cpu = net_data.get("cpu_pct", 10)
-            temp = net_data.get("temp_c", 40.0)
-            ram = net_data.get("ram_pct", 30)
-            footer_text = f"SYS: CPU {cpu}% | RAM {ram}% | {int(temp)}°C"
 
-        draw.text((4, 107), footer_text[:40], font=self.font_small, fill=0)
+        draw.text((4, 107), footer_text[:42], font=self.font_small, fill=0)
 
     def _render_sentinel_hud(
         self,
@@ -178,49 +171,53 @@ class GotchiRenderer:
         net_data: Dict,
         security_data: Dict,
     ):
-        """Renders dedicated Cyber Defense Tactical HUD on 250x122 display."""
-        # Top Bar
-        now_str = datetime.datetime.now().strftime("%H:%M:%S")
-        draw.text((4, 2), f"🛡️ SENTINEL [DEFCON {state.defcon}]", font=self.font_bold, fill=0)
-        draw.text((self.width - 50, 2), now_str, font=self.font_small, fill=0)
+        """Renders clean Cyber Defense Tactical HUD with no seconds and crisp layout."""
+        # Top Bar (Strictly HH:MM)
+        now_str = datetime.datetime.now().strftime("%H:%M")
+        draw.text((4, 2), f"SENTINEL [DEFCON {state.defcon}]", font=self.font_bold, fill=0)
+        draw.text((self.width - 40, 2), now_str, font=self.font_small, fill=0)
         draw.line([(0, 14), (self.width, 14)], fill=0, width=1)
 
         # Left Avatar Stage
-        draw.text((8, 24), "( ◉_◉ )", font=self.font_face, fill=0)
-        draw.text((10, 48), "[SENTINEL]", font=self.font_small, fill=0)
-        draw.text((10, 62), f"Lv.{state.level} GUARD", font=self.font_small, fill=0)
-        draw.text((10, 76), f"SCANS: {state.total_security_scans}", font=self.font_small, fill=0)
+        ax1, ay1, ax2, ay2 = 4, 18, 76, 99
+        draw.rounded_rectangle([ax1, ay1, ax2, ay2], radius=4, outline=0, fill=255, width=1)
 
-        # Vertical divider line
-        draw.line([(82, 14), (82, 103)], fill=0, width=1)
+        face_str = state.face or "( ◉_◉ )"
+        draw.text((ax1 + 4, ay1 + 18), face_str, font=self.font_face, fill=0)
+        draw.text((ax1 + 6, ay2 - 28), "[SENTINEL]", font=self.font_small, fill=0)
+        draw.text((ax1 + 6, ay2 - 14), f"SCANS:{state.total_security_scans}", font=self.font_small, fill=0)
 
         # Right Tactical Matrix Box
+        bx1, by1, bx2, by2 = 82, 18, 245, 99
+        draw.rounded_rectangle([bx1, by1, bx2, by2], radius=4, outline=0, fill=255, width=1)
+
         lan_hosts = security_data.get("lan_hosts_count", 0)
         arp_ok = "OK" if not security_data.get("arp_spoof_detected", False) else "ALERT"
         wifi_aps = security_data.get("wifi_aps_count", 0)
-        evil_twin = "0" if not security_data.get("evil_twin_detected", False) else "DETECTED"
+        evil_twin = "0" if not security_data.get("evil_twin_detected", False) else "WARN"
         ssh_blocked = security_data.get("ssh_failed_attempts", 0)
         ports_count = len(security_data.get("open_ports", []))
-        status_line = security_data.get("defcon_status", "ALL SHIELDS ACTIVE")[:22]
+        status_line = security_data.get("defcon_status", "ALL SHIELDS OK")[:20]
 
-        draw.text((88, 20), f"• LAN NODES: {lan_hosts} (ARP: {arp_ok})", font=self.font_small, fill=0)
-        draw.text((88, 34), f"• RF BEACONS: {wifi_aps} (TWIN: {evil_twin})", font=self.font_small, fill=0)
-        draw.text((88, 48), f"• SSH BLOCKED: {ssh_blocked} attempts", font=self.font_small, fill=0)
-        draw.text((88, 62), f"• OPEN PORTS: {ports_count} active", font=self.font_small, fill=0)
-        draw.text((88, 76), f"• POSTURE: {status_line}", font=self.font_bold, fill=0)
+        draw.text((bx1 + 6, by1 + 5), f"- LAN NODES: {lan_hosts} (ARP:{arp_ok})", font=self.font_small, fill=0)
+        draw.text((bx1 + 6, by1 + 18), f"- RF BEACONS: {wifi_aps} (TWIN:{evil_twin})", font=self.font_small, fill=0)
+        draw.text((bx1 + 6, by1 + 31), f"- SSH SHIELD: {ssh_blocked} blocked", font=self.font_small, fill=0)
+        draw.text((bx1 + 6, by1 + 44), f"- OPEN PORTS: {ports_count} active", font=self.font_small, fill=0)
+        draw.text((bx1 + 6, by1 + 57), f"- {status_line}", font=self.font_bold, fill=0)
 
-        # Threat Level Bar
+        # Threat meter line
         threat_score = min(100, max(0, security_data.get("threat_score", 0)))
-        draw.text((88, 89), "THREAT:", font=self.font_small, fill=0)
-        draw.rectangle([136, 90, 240, 97], outline=0, fill=255)
-        bar_fill = int((threat_score / 100.0) * 102)
+        draw.text((bx1 + 6, by1 + 69), "THREAT:", font=self.font_small, fill=0)
+        draw.rectangle([bx1 + 50, by1 + 70, bx2 - 6, by1 + 76], outline=0, fill=255)
+        bar_fill = int((threat_score / 100.0) * (bx2 - bx1 - 58))
         if bar_fill > 0:
-            draw.rectangle([137, 91, 137 + bar_fill, 96], fill=0)
+            draw.rectangle([bx1 + 51, by1 + 71, bx1 + 51 + bar_fill, by1 + 75], fill=0)
 
         # Footer
         draw.line([(0, 103), (self.width, 103)], fill=0, width=1)
         ping = int(net_data.get("ping_ms", 0))
-        draw.text((4, 107), f"SHIELDS: ARP-GUARD • RF-SENTINEL | {ping}ms", font=self.font_small, fill=0)
+        watt = net_data.get("wattage_w", 0.85)
+        draw.text((4, 107), f"SHIELDS: ARP-GUARD * RF-RADAR | {ping}ms | {watt}W", font=self.font_small, fill=0)
 
     def _wrap_text(self, text: str, max_chars: int = 22) -> list:
         words = text.split(" ")

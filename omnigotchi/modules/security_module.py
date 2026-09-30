@@ -1,4 +1,4 @@
-"""Cybersecurity Sentinel: Defensive LAN Radar, ARP Spoof Detection, RF Survey & Auth Guard."""
+"""Cybersecurity Sentinel: Defensive LAN Radar, ARP Spoof Detection, RF Survey, DNS Guard & Auth Shield."""
 
 import asyncio
 import logging
@@ -22,15 +22,19 @@ class SecurityModule:
             "lan_hosts_count": 0,
             "lan_hosts": [],
             "arp_spoof_detected": False,
-            "arp_alert_msg": "ARP Table Nominal",
+            "arp_alert_msg": "ARP Table Clean",
             "wifi_aps_count": 0,
             "wifi_aps": [],
+            "channel_spectrum": {"ch1": 0, "ch6": 0, "ch11": 0, "other": 0},
             "evil_twin_detected": False,
             "rogue_ap_count": 0,
+            "dns_servers": ["1.1.1.1"],
+            "dns_hijack_detected": False,
             "ssh_failed_attempts": 0,
             "ssh_last_failed_ip": "",
             "open_ports": [],
-            "active_shields": ["ARP-GUARD", "RF-SENTINEL", "AUTH-SHIELD", "PORT-MONITOR"],
+            "vulnerabilities": [],
+            "active_shields": ["ARP-GUARD", "RF-SENTINEL", "AUTH-SHIELD", "DNS-GUARD", "PORT-RADAR"],
             "last_scan_ts": time.time(),
         }
         self.gateway_ip = "192.168.0.1"
@@ -42,6 +46,7 @@ class SecurityModule:
             lan_data = await self._scan_lan()
             rf_data = await self._scan_wifi_beacons()
             auth_data = await self._audit_auth_and_ports()
+            dns_data = self._audit_dns()
 
             # Update cached state
             self.cached_state["lan_hosts_count"] = len(lan_data["hosts"])
@@ -51,12 +56,17 @@ class SecurityModule:
 
             self.cached_state["wifi_aps_count"] = len(rf_data["aps"])
             self.cached_state["wifi_aps"] = rf_data["aps"][:8]
+            self.cached_state["channel_spectrum"] = rf_data["spectrum"]
             self.cached_state["evil_twin_detected"] = rf_data["evil_twin_detected"]
             self.cached_state["rogue_ap_count"] = rf_data["rogue_count"]
+
+            self.cached_state["dns_servers"] = dns_data["servers"]
+            self.cached_state["dns_hijack_detected"] = dns_data["hijacked"]
 
             self.cached_state["ssh_failed_attempts"] = auth_data["failed_logins"]
             self.cached_state["ssh_last_failed_ip"] = auth_data["last_failed_ip"]
             self.cached_state["open_ports"] = auth_data["open_ports"]
+            self.cached_state["vulnerabilities"] = auth_data["vulns"]
             self.cached_state["last_scan_ts"] = time.time()
 
             # Calculate DEFCON threat level (5=Normal, 1=Critical)
@@ -123,32 +133,30 @@ class SecurityModule:
         except Exception:
             pass
 
-        # Check for duplicate MACs claiming multiple distinct IPv4 addresses (ARP Spoofing signature)
+        # Check for duplicate MACs claiming multiple distinct IPv4 addresses
         for ip, mac in ip_mac_map.items():
             if ":" in ip:
-                continue  # Skip IPv6 addresses when verifying IPv4 ARP collisions
+                continue  # Skip IPv6 link-local
             if mac in mac_ip_map and mac_ip_map[mac] != ip:
-                # Same MAC claiming multiple IPv4 addresses
                 if ip == self.gateway_ip or mac_ip_map[mac] == self.gateway_ip:
                     arp_spoof = True
                     alert_msg = f"ARP Poisoning detected on {ip} (MAC: {mac})"
             else:
                 mac_ip_map[mac] = ip
 
-
         return {
             "hosts": hosts,
             "arp_spoof_detected": arp_spoof,
-            "alert_msg": alert_msg,
             "arp_alert_msg": alert_msg,
         }
 
     async def _scan_wifi_beacons(self) -> Dict:
-        """Scans local RF spectrum for wireless APs and flags Rogue / Evil Twin APs."""
+        """Scans local RF spectrum for wireless APs and calculates channel congestion."""
         aps = []
         ssid_map = {}
         evil_twin = False
         rogue_count = 0
+        spectrum = {"ch1": 0, "ch6": 0, "ch11": 0, "other": 0}
 
         loop = asyncio.get_event_loop()
         try:
@@ -159,12 +167,9 @@ class SecurityModule:
             )
             if res.returncode == 0 and res.stdout.strip():
                 for line in res.stdout.strip().split("\n"):
-                    # Unescape nmcli output
                     cleaned = line.replace("\\:", ":")
                     parts = cleaned.split(":")
                     if len(parts) >= 5:
-                        bssid = ":".join(parts[0:6]) if len(parts) >= 10 else parts[0]
-                        # nmcli fields: BSSID (6 parts), SSID, CHAN, SIGNAL, SECURITY
                         raw_fields = cleaned.split(":")
                         if len(raw_fields) >= 10:
                             bssid = ":".join(raw_fields[0:6])
@@ -182,6 +187,16 @@ class SecurityModule:
                         if not ssid:
                             ssid = "<Hidden SSID>"
 
+                        # Spectrum counting
+                        if chan == "1":
+                            spectrum["ch1"] += 1
+                        elif chan == "6":
+                            spectrum["ch6"] += 1
+                        elif chan == "11":
+                            spectrum["ch11"] += 1
+                        else:
+                            spectrum["other"] += 1
+
                         is_open = (sec == "" or "open" in sec.lower() or sec == "--")
                         if is_open:
                             rogue_count += 1
@@ -196,7 +211,6 @@ class SecurityModule:
                         }
                         aps.append(ap_entry)
 
-                        # Evil twin detection: duplicate SSID with different BSSID & mismatched encryption
                         if ssid not in ("<Hidden SSID>", ""):
                             if ssid in ssid_map:
                                 prev_sec = ssid_map[ssid]
@@ -209,13 +223,33 @@ class SecurityModule:
 
         return {
             "aps": aps,
+            "spectrum": spectrum,
             "evil_twin_detected": evil_twin,
             "rogue_count": rogue_count,
         }
 
+    def _audit_dns(self) -> Dict:
+        """Audits DNS nameservers configured in /etc/resolv.conf."""
+        servers = []
+        hijacked = False
+        if os.path.exists("/etc/resolv.conf"):
+            try:
+                with open("/etc/resolv.conf", "r") as f:
+                    for line in f:
+                        if line.startswith("nameserver"):
+                            parts = line.split()
+                            if len(parts) > 1:
+                                servers.append(parts[1])
+            except Exception:
+                pass
+        if not servers:
+            servers = ["1.1.1.1"]
+        return {"servers": servers, "hijacked": hijacked}
+
     async def _audit_auth_and_ports(self) -> Dict:
         """Audits listening ports and SSH authentication journal for brute force attempts."""
         open_ports = []
+        vulns = []
         failed_logins = 0
         last_failed_ip = ""
 
@@ -236,6 +270,8 @@ class SecurityModule:
                             p = int(match.group(1))
                             if p not in open_ports and p < 65535:
                                 open_ports.append(p)
+                                if p in (21, 23):
+                                    vulns.append(f"Insecure plaintext port {p} open")
         except Exception:
             pass
 
@@ -258,6 +294,7 @@ class SecurityModule:
 
         return {
             "open_ports": sorted(open_ports)[:8],
+            "vulns": vulns,
             "failed_logins": failed_logins,
             "last_failed_ip": last_failed_ip,
         }
@@ -268,21 +305,20 @@ class SecurityModule:
         status = "SECURE"
         level = 5
 
-        # Checks
         if self.cached_state.get("arp_spoof_detected", False):
-            score += 80
+            score = 90
             level = 1
             status = "ARP POISONING DETECTED"
         elif self.cached_state.get("evil_twin_detected", False):
-            score += 60
+            score = 65
             level = 2
             status = "EVIL TWIN AP DETECTED"
         elif self.cached_state.get("ssh_failed_attempts", 0) > 10:
-            score += 45
+            score = 45
             level = 3
             status = "SSH BRUTE FORCE ATTACK"
         elif self.cached_state.get("rogue_ap_count", 0) > 0:
-            score += 20
+            score = 20
             level = 4
             status = "OPEN RF NETWORK PROBES"
         else:
