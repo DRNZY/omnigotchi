@@ -12,6 +12,7 @@ from omnigotchi.display.renderer import GotchiRenderer
 from omnigotchi.modules.audio_module import AudioModule
 from omnigotchi.modules.dev_module import DevModule
 from omnigotchi.modules.net_module import NetModule
+from omnigotchi.modules.security_module import SecurityModule
 
 
 def test_brain_state_and_leveling():
@@ -44,6 +45,12 @@ def test_brain_state_and_leveling():
 
         brain.pet()
         assert brain.state.total_pets == 1
+
+        # Test display mode toggle
+        mode = brain.toggle_display_mode()
+        assert mode == "sentinel"
+        mode = brain.toggle_display_mode()
+        assert mode == "companion"
 
         # Verify state reloaded from file correctly
         brain2 = GotchiBrain(state_file=state_file, name="OmniTest")
@@ -82,6 +89,11 @@ def test_mood_resolution():
         dev_data["is_active_repo"] = True
         brain.resolve_mood(dev_data, audio_data, net_data)
         assert brain.state.mood == "CODING"
+
+        # 4. Test security alert -> DEFCON
+        sec_data = {"defcon_level": 2, "defcon_status": "EVIL TWIN DETECTED", "evil_twin_detected": True}
+        brain.resolve_mood(dev_data, audio_data, net_data, security_data=sec_data)
+        assert brain.state.mood == "DEFCON"
     finally:
         if os.path.exists(state_file):
             os.unlink(state_file)
@@ -101,12 +113,20 @@ def test_canvas_renderer():
     dev_data = {"recent_commits_24h": 2, "followers": 24, "streak_days": 5}
     audio_data = {"is_playing": False}
     net_data = {"ping_ms": 18.2, "cpu_pct": 14, "temp_c": 42.0, "ram_pct": 28}
+    sec_data = {"defcon_level": 5, "lan_hosts_count": 8, "wifi_aps_count": 3}
 
-    img = renderer.render(state, dev_data, audio_data, net_data)
-
+    # Companion mode
+    img = renderer.render(state, dev_data, audio_data, net_data, sec_data)
     assert isinstance(img, Image.Image)
     assert img.size == (250, 122)
-    assert img.mode == "1"  # 1-bit monochrome image
+    assert img.mode == "1"
+
+    # Sentinel mode
+    state.display_mode = "sentinel"
+    img_sentinel = renderer.render(state, dev_data, audio_data, net_data, sec_data)
+    assert isinstance(img_sentinel, Image.Image)
+    assert img_sentinel.size == (250, 122)
+    assert img_sentinel.mode == "1"
 
 
 def test_mock_driver_and_ascii():
@@ -141,7 +161,7 @@ async def test_modules_polling():
     assert "followers" in dev_stats
     assert "recent_commits_24h" in dev_stats
 
-    audio_mod = AudioModule(cadence_url="http://127.0.0.1:9999")  # unreachable URL safe
+    audio_mod = AudioModule(cadence_url="http://127.0.0.1:9999")
     audio_stats = await audio_mod.poll()
     assert isinstance(audio_stats, dict)
     assert audio_stats["is_playing"] is False
@@ -151,3 +171,11 @@ async def test_modules_polling():
     assert isinstance(net_stats, dict)
     assert "ping_ms" in net_stats
     assert "cpu_pct" in net_stats
+
+    sec_mod = SecurityModule()
+    sec_stats = await sec_mod.poll()
+    assert isinstance(sec_stats, dict)
+    assert "defcon_level" in sec_stats
+    assert "lan_hosts_count" in sec_stats
+    assert "wifi_aps_count" in sec_stats
+    assert "active_shields" in sec_stats

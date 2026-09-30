@@ -68,6 +68,26 @@ QUOTES: Dict[str, List[str]] = {
         "Consistency is king.",
         "Days on fire! Keep going!",
     ],
+    "SENTINEL": [
+        "Scanning RF & Wi-Fi beacons...",
+        "LAN perimeter monitored.",
+        "Zero rogue APs in range.",
+        "Defensive radar spinning.",
+        "Monitoring network packets.",
+    ],
+    "DEFCON": [
+        "THREAT DETECTED! On alert.",
+        "Suspicious ARP broadcast!",
+        "Rogue AP beacon flagged!",
+        "Defending local network!",
+        "Shields up! Defcon elevated.",
+    ],
+    "SHIELD": [
+        "All network nodes secured.",
+        "Firewall hardened & active.",
+        "ARP cache locked tight.",
+        "Port sentinel all green.",
+    ],
 }
 
 FACES: Dict[str, List[str]] = {
@@ -80,6 +100,9 @@ FACES: Dict[str, List[str]] = {
     "SLEEPING": ["( -_- ) zzz", "( u_u ) .zZ", "( ¯_¯ ) zZ"],
     "LEVEL_UP": ["( ★‿★ )", "( ✧∀✧ )", "( ʘ‿ʘ )★"],
     "ALERT": ["( Ò_Ó )", "( ⚆_⚆ )", "( ! _ ! )"],
+    "SENTINEL": ["( ◉_◉ )", "( ⊙_⊙ )", "( 🔍_🔍 )"],
+    "DEFCON": ["( ⚆_⚆ )", "( Ò_Ó )", "( ⚠️_⚠️ )"],
+    "SHIELD": ["( 🛡️_🛡️ )", "( 🔒_🔒 )", "( ▀̿Ĺ̯▀̿ ̿)"],
 }
 
 
@@ -105,6 +128,8 @@ def get_random_quote(mood: str, context: dict = None) -> str:
         if mood == "LAGGING" and context.get("ping_ms"):
             ping = context.get("ping_ms", 999)
             return f"High ping: {int(ping)}ms!"
+        if mood in ("SENTINEL", "DEFCON", "SHIELD") and context.get("sec_alert"):
+            return context["sec_alert"][:22]
 
     pool = QUOTES.get(mood, QUOTES["HAPPY"])
     return random.choice(pool)

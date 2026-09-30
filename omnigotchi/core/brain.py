@@ -14,10 +14,10 @@ logger = logging.getLogger("omnigotchi.brain")
 TITLES = [
     (1, "Script Novice"),
     (3, "Byte Apprentice"),
-    (5, "Terminal Hacker"),
-    (10, "Silicon Overlord"),
-    (15, "Cyber Shaman"),
-    (20, "Digital Demigod"),
+    (5, "Cyber Sentinel"),
+    (10, "Terminal Hacker"),
+    (15, "Silicon Guardian"),
+    (20, "Cyber Demigod"),
 ]
 
 
@@ -34,16 +34,22 @@ class GotchiState:
     face: str = "( ^‿^ )"
     quote: str = "Living my best 1-bit life!"
     title: str = "Script Novice"
-    badges: List[str] = field(default_factory=lambda: ["GENESIS"])
+    badges: List[str] = field(default_factory=lambda: ["GENESIS", "SHIELD-V1"])
     
     # Visual settings
     rotation: int = 0  # 0 or 180
+    display_mode: str = "companion"  # "companion" or "sentinel"
+    
+    # Cybersecurity & DEFCON
+    defcon: int = 5
+    threat_status: str = "SECURE"
     
     # Life statistics
     total_commits: int = 0
     total_tracks_listened: int = 0
     total_pets: int = 0
     total_feeds: int = 0
+    total_security_scans: int = 0
     created_at: float = field(default_factory=time.time)
     last_tick: float = field(default_factory=time.time)
     last_active: float = field(default_factory=time.time)
@@ -61,7 +67,10 @@ class GotchiBrain:
             try:
                 with open(self.state_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    return GotchiState(**data)
+                    # Filter only fields known to GotchiState
+                    valid_keys = GotchiState.__dataclass_fields__.keys()
+                    filtered = {k: v for k, v in data.items() if k in valid_keys}
+                    return GotchiState(**filtered)
             except Exception as e:
                 logger.warning(f"Could not load state, creating fresh: {e}")
         st = GotchiState(name=name)
@@ -77,6 +86,13 @@ class GotchiBrain:
                 json.dump(asdict(st), f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save state: {e}")
+
+    def toggle_display_mode(self) -> str:
+        """Toggles between standard cyberpet companion and cyber defense sentinel HUD."""
+        new_mode = "sentinel" if self.state.display_mode == "companion" else "companion"
+        self.state.display_mode = new_mode
+        self._save()
+        return new_mode
 
     def gain_xp(self, amount: int, reason: str = "") -> bool:
         """Add XP and handle level-ups. Returns True if leveled up."""
@@ -127,14 +143,22 @@ class GotchiBrain:
         self.last_quote_change = time.time()
         self._save()
 
+    def record_security_scan(self, defcon: int, status: str):
+        self.state.total_security_scans += 1
+        self.state.defcon = defcon
+        self.state.threat_status = status
+        self.gain_xp(20, "security_scan")
+        self._save()
+
     def resolve_mood(
         self,
         dev_data: dict,
         audio_data: dict,
         net_data: dict,
+        security_data: Optional[dict] = None,
         now: Optional[float] = None,
     ):
-        """Calculates current mood based on tri-core telemetry."""
+        """Calculates current mood based on tri-core & security telemetry."""
         if now is None:
             now = time.time()
 
@@ -145,7 +169,7 @@ class GotchiBrain:
         hours_passed = dt / 3600.0
         self.state.hunger = max(0.0, self.state.hunger - (hours_passed * 10.0))
 
-        # Check hour for night / sleep mode (e.g. between 00:00 and 07:00 if idle)
+        # Check hour for night / sleep mode (between 00:00 and 07:00 if idle)
         import datetime
         current_hour = datetime.datetime.now().hour
         is_night = current_hour >= 0 and current_hour < 7
@@ -154,18 +178,21 @@ class GotchiBrain:
         high_ping = net_data.get("ping_ms", 0) > 250 or net_data.get("is_offline", False)
         is_starving = self.state.hunger < 20.0
 
-        # Determine primary mood priority:
-        # 1. High Ping / Offline alert
-        # 2. Playing Music -> DANCING / MUSIC
-        # 3. Coding -> CODING
-        # 4. Starving -> HUNGRY
-        # 5. Night time & idle -> SLEEPING
-        # 6. Default -> HAPPY
+        sec = security_data or {}
+        defcon = sec.get("defcon_level", 5)
+        arp_spoof = sec.get("arp_spoof_detected", False)
+        evil_twin = sec.get("evil_twin_detected", False)
+        self.state.defcon = defcon
+        self.state.threat_status = sec.get("defcon_status", "SECURE")
 
         context = {}
         target_mood = "HAPPY"
 
-        if high_ping:
+        # Security threats take top priority
+        if defcon <= 2 or arp_spoof or evil_twin:
+            target_mood = "DEFCON"
+            context["sec_alert"] = sec.get("defcon_status", "DEFENSE ALERT")
+        elif high_ping:
             target_mood = "LAGGING"
             context["ping_ms"] = net_data.get("ping_ms", 999)
         elif is_playing:
@@ -176,6 +203,8 @@ class GotchiBrain:
         elif is_coding and not is_night:
             target_mood = "CODING"
             context["last_repo"] = dev_data.get("last_repo", "")
+        elif self.state.display_mode == "sentinel":
+            target_mood = "SENTINEL"
         elif is_starving:
             target_mood = "HUNGRY"
         elif is_night and not is_playing and not is_coding:
