@@ -21,23 +21,24 @@ class EPaperHardwareDriver:
     def _init_hardware(self):
         """Attempts to dynamically load waveshare_epd driver modules."""
         try:
+            try:
+                from omnigotchi.display.waveshare_epd import epd2in13_V4, epd2in13_V3, epd2in13_V2, epd2in13
+            except ImportError:
+                from waveshare_epd import epd2in13_V4, epd2in13_V3, epd2in13_V2, epd2in13
+
             if "v4" in self.model.lower():
-                from waveshare_epd import epd2in13_V4
                 self.epd = epd2in13_V4.EPD()
             elif "v3" in self.model.lower():
-                from waveshare_epd import epd2in13_V3
                 self.epd = epd2in13_V3.EPD()
             elif "v2" in self.model.lower():
-                from waveshare_epd import epd2in13_V2
                 self.epd = epd2in13_V2.EPD()
             else:
-                from waveshare_epd import epd2in13_V4
                 self.epd = epd2in13_V4.EPD()
 
             self.epd.init()
             logger.info(f"Initialized Waveshare e-Paper driver ({self.model})")
-        except ImportError:
-            logger.warning("waveshare_epd module not found. Run setup.sh on Raspberry Pi.")
+        except ImportError as e:
+            logger.warning(f"e-Paper dependencies missing (spidev/RPi.GPIO): {e}")
             self.epd = None
         except Exception as e:
             logger.error(f"Failed to initialize EPD hardware: {e}")

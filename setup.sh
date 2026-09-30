@@ -9,34 +9,27 @@ echo "=========================================================="
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USER_NAME="$(whoami)"
 
-echo "[1/5] Updating system packages & installing hardware dependencies..."
+echo "[1/4] Installing hardware dependencies (SPI, GPIO, Pillow)..."
 sudo apt-get update -y
-sudo apt-get install -y python3-pip python3-venv python3-pil python3-psutil git raspi-config
+sudo apt-get install -y python3-pip python3-venv python3-pil python3-psutil python3-spidev git raspi-config || true
+# Try installing GPIO packages available on Raspberry Pi OS
+sudo apt-get install -y python3-rpi-lgpio || sudo apt-get install -y python3-rpi.gpio || true
 
-echo "[2/5] Enabling SPI interface on Raspberry Pi..."
+echo "[2/4] Enabling SPI interface on Raspberry Pi..."
 if command -v raspi-config >/dev/null 2>&1; then
-    sudo raspi-config nonint do_spi 0
-    echo "-> SPI interface enabled successfully."
-else
-    echo "-> Note: raspi-config not found (skipping nonint SPI setup)."
+    sudo raspi-config nonint do_spi 0 || true
+    echo "-> SPI interface enabled."
 fi
 
-echo "[3/5] Setting up Python virtual environment..."
+echo "[3/4] Setting up Python virtual environment..."
 cd "$PROJECT_DIR"
 if [ ! -d ".venv" ]; then
     python3 -m venv .venv --system-site-packages
 fi
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -e .
 
-echo "[4/5] Installing Waveshare e-Paper Python library..."
-if [ ! -d "e-Paper" ]; then
-    git clone https://github.com/waveshare/e-Paper.git /tmp/waveshare-epaper
-    cp -r /tmp/waveshare-epaper/RaspberryPi_JetsonNano/python/lib/waveshare_epd "$PROJECT_DIR/omnigotchi/display/" || true
-    rm -rf /tmp/waveshare-epaper
-fi
-
-echo "[5/5] Creating and enabling systemd background service (omnigotchi.service)..."
+echo "[4/4] Creating and enabling systemd service (omnigotchi.service)..."
 SERVICE_FILE="/etc/systemd/system/omnigotchi.service"
 sudo bash -c "cat <<EOF > $SERVICE_FILE
 [Unit]
