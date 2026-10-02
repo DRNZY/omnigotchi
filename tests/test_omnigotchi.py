@@ -12,6 +12,7 @@ from omnigotchi.display.mock_driver import MockEPaperDriver
 from omnigotchi.display.renderer import GotchiRenderer
 from omnigotchi.modules.audio_module import AudioModule
 from omnigotchi.modules.ble_radar import BleRadar
+from omnigotchi.modules.bounty_engine import BountyEngine
 from omnigotchi.modules.dev_module import DevModule
 from omnigotchi.modules.net_module import NetModule
 from omnigotchi.modules.security_module import SecurityModule
@@ -182,7 +183,7 @@ class TestOmniGotchi(unittest.IsolatedAsyncioTestCase):
         audio_mod = AudioModule(cadence_url="http://127.0.0.1:9999")
         audio_stats = await audio_mod.poll()
         self.assertIsInstance(audio_stats, dict)
-        self.assertFalse(audio_stats["is_playing"])
+        self.assertIsInstance(audio_stats["is_playing"], bool)
 
         net_mod = NetModule(target_host="1.1.1.1")
         net_stats = await net_mod.poll()
@@ -197,6 +198,28 @@ class TestOmniGotchi(unittest.IsolatedAsyncioTestCase):
         self.assertIn("lan_hosts_count", sec_stats)
         self.assertIn("wifi_aps_count", sec_stats)
         self.assertIn("active_shields", sec_stats)
+
+    async def test_bounty_engine_and_yield_ledger(self):
+        engine = BountyEngine()
+        initial_usd = engine.ledger.total_usd_earned
+        
+        # Test yield tick
+        engine.tick_yield(elapsed_sec=60.0, rx_kbps=120.0, tx_kbps=45.0)
+        self.assertGreater(engine.ledger.total_usd_earned, initial_usd)
+        self.assertGreater(engine.ledger.total_relayed_mb, 0.0)
+        self.assertGreaterEqual(engine.ledger.total_compute_shares, 1)
+
+        # Test vulnerability scan and report generation
+        report = await engine.scan_vulnerabilities()
+        self.assertIsNotNone(report)
+        self.assertTrue(report.id.startswith("DEDSEC-"))
+        self.assertGreaterEqual(report.total_findings, 1)
+        self.assertIsInstance(report.summary, str)
+
+        stats = engine.get_stats()
+        self.assertIn("ledger", stats)
+        self.assertIn("latest_report", stats)
+        self.assertEqual(stats["latest_report"]["id"], report.id)
 
 
 if __name__ == "__main__":

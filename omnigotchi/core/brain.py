@@ -13,28 +13,29 @@ logger = logging.getLogger("omnigotchi.brain")
 
 TITLES = [
     (1, "Script Novice"),
-    (3, "Byte Apprentice"),
-    (5, "Cyber Sentinel"),
-    (10, "Terminal Hacker"),
-    (15, "Silicon Guardian"),
-    (20, "Cyber Demigod"),
+    (3, "Mesh Infiltrator"),
+    (5, "ctOS Disruptor"),
+    (8, "Bounty Hunter"),
+    (12, "Grid Reclaimer"),
+    (16, "DedSec Operator"),
+    (20, "Zero-Day Architect"),
 ]
 
 
 @dataclass
 class GotchiState:
-    name: str = "Omni"
+    name: str = "DEDSEC"
     level: int = 1
     xp: int = 0
     xp_next: int = 100
     hunger: float = 100.0  # 100 is full, 0 is starving
     energy: float = 100.0  # 100 is energetic, 0 is exhausted
     happiness: float = 100.0
-    mood: str = "HAPPY"
-    face: str = "( ^‿^ )"
-    quote: str = "Living my best 1-bit life!"
+    mood: str = "DEDSEC"
+    face: str = "[ X _ X ]"
+    quote: str = "DedSec gives you truth."
     title: str = "Script Novice"
-    badges: List[str] = field(default_factory=lambda: ["GENESIS", "SHIELD-V1"])
+    badges: List[str] = field(default_factory=lambda: ["DEDSEC-ROOT", "CTOS-EXPLOIT", "BOUNTY-V1"])
     
     # Visual settings
     rotation: int = 0  # 0 or 180

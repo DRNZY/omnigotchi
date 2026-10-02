@@ -1,153 +1,142 @@
-"""Pwnagotchi-grade Expressions, Faces (75+) and Dynamic Quotes for OmniGotchi."""
+"""DedSec CyberOS Expressions, ASCII Faces, and Authentic DedSec Hacker Quotes."""
 
 import random
 from typing import Dict, List, Optional
 
 FACES: Dict[str, List[str]] = {
+    "DEDSEC": [
+        "[ X _ X ]",
+        "( [X_X] )",
+        "( X _ x )",
+        "( x _ X )",
+        "[ / _ \\ ]",
+        "[ \\ _ / ]",
+        "( > _ < )!",
+        "( ! _ ! )#",
+        "( 0 _ 0 )#",
+        "( 1 _ 0 )!",
+    ],
+    "BOUNTY": [
+        "( $ _ $ )",
+        "( $ . $ )",
+        "[ $ _ $ ]",
+        "( > _ $ )",
+        "( $ _ < )",
+        "( * _ $ )",
+        "( ¢ _ ¢ )",
+    ],
     "HAPPY": [
-        "( ^ _ ^ )",
+        "[ ^ _ ^ ]",
         "( ^ . ^ )",
         "( ^ o ^ )",
-        "( ^ - ^ )",
+        "[ - _ ^ ]",
         "( o _ o )",
-        "( o . o )",
         "( * _ * )",
-        "( * . * )",
-        "( 3 _ 3 )",
-        "( 3 . 3 )",
-        "( u _ u )",
         "( v _ v )",
     ],
-    "SMUG": [
-        "( - _ ^ )",
-        "( ^ _ - )",
-        "( > _ ^ )",
-        "( ^ _ < )",
-        "( ~ _ ^ )",
-        "( ^ _ ~ )",
-        "( = _ ^ )",
-        "( ^ _ = )",
-        "( ¬ _ ¬ )",
-        "( ¬ _ ^ )",
-    ],
     "CODING": [
-        "( [ _ ] )",
+        "[ [ _ ] ]",
         "( { _ } )",
-        "( 0 _ 0 )",
         "( 0 _ 1 )",
         "( 1 _ 0 )",
         "( < _ > )",
-        "( > _ < )",
-        "( / _ \\ )",
-        "( \\ _ / )",
+        "[ / _ \\ ]",
         "( | _ | )",
     ],
     "SENTINEL": [
-        "( O _ O )",
-        "( O . O )",
+        "[ O _ O ]",
         "( @ _ @ )",
-        "( @ . @ )",
         "( ! _ ! )",
-        "( ! . ! )",
-        "( ? _ ? )",
-        "( ? . ? )",
+        "[ ? _ ? ]",
         "( o _ O )",
-        "( O _ o )",
+        "[ X _ O ]",
     ],
     "DEFCON": [
-        "( > _ < )",
-        "( > . < )",
-        "( ! _ ! )",
-        "( X _ X )",
-        "( x _ x )",
-        "( * _ * )",
+        "[ X _ X ]!",
+        "( > _ < )#",
+        "( ! _ ! )!",
         "( # _ # )",
-        "( $ _ $ )",
+        "[ ! _ ! ]",
     ],
     "SHIELD": [
-        "( [ _ ] )",
+        "[ [ _ ] ]",
         "( = _ = )",
-        "( = . = )",
         "( - _ - )",
-        "( - . - )",
-        "( + _ + )",
-        "( + . + )",
+        "[ + _ + ]",
+        "( | _ | )",
     ],
     "MUSIC": [
-        "( d _ b )",
-        "( q _ p )",
+        "( d _ b )#",
+        "( q _ p )#",
         "( d . b )",
-        "( q . p )",
-        "( ^ _ ^ )~",
-        "~( ^ _ ^ )",
+        "[ ^ _ ^ ]~",
+        "~( [X_X] )",
     ],
     "DANCING": [
+        "\\( [X_X] )/",
+        "/( [X_X] )\\",
         "\\( ^ _ ^ )/",
         "/( ^ _ ^ )\\",
-        "\\( o _ o )/",
-        "/( o _ o )\\",
-        "\\( * _ * )/",
     ],
     "SLEEPY": [
-        "( - _ - )zZ",
+        "[ - _ - ]zZ",
         "( u _ u )zZ",
-        "( v _ v )zZ",
         "( . _ . )zZ",
-        "( ~ _ ~ )zZ",
-    ],
-    "HUNGRY": [
-        "( . _ . )",
-        "( . . . )",
-        "( o _ . )",
-        "( . _ o )",
-        "( ; _ ; )",
-        "( T _ T )",
+        "[ ~ _ ~ ]zZ",
     ],
     "LEVEL_UP": [
-        "( * _ * )!",
-        "( ^ _ ^ )*",
+        "[ * _ * ]!",
         "( $ _ $ )!",
-        "( ! _ ! )*",
+        "[ ! _ ! ]*",
         "( > _ < )*",
-    ],
-    "DERP": [
-        "( @ _ o )",
-        "( o _ @ )",
-        "( ? _ o )",
-        "( o _ ? )",
-        "( ~ _ o )",
-        "( o _ ~ )",
     ],
 }
 
 QUOTES: Dict[str, List[str]] = {
+    "DEDSEC": [
+        "DedSec gives you truth.",
+        "Join us. Expect resistance.",
+        "The ctOS system is flawed.",
+        "Your fear is their power.",
+        "We are the signal in static.",
+        "Zero gods, zero masters.",
+        "Encrypt all. Trust none.",
+        "Reclaim the grid.",
+        "Break the code.",
+        "Information is currency.",
+        "Free the net.",
+    ],
+    "BOUNTY": [
+        "Harvesting network yield...",
+        "Passive sats accumulating.",
+        "Bounty radar active.",
+        "Mesh relay bandwidth shared.",
+        "Mining compute proof...",
+        "Yield locked in vault.",
+    ],
     "HAPPY": [
-        "Vibes are clean.",
+        "Grid perimeter nominal.",
         "Living my best 1-bit life!",
         "E-ink never sleeps.",
-        "System is running like silk.",
-        "Everything nominal, human.",
-        "Feeling sharp today!",
         "Pixels crisp, packets fast.",
+        "DedSec sentinel online.",
     ],
     "CODING": [
-        "Ship it to prod!",
-        "Another commit in the vault.",
-        "Green tests make me purr.",
-        "Clean diffs, happy life.",
+        "Pushing payload to prod.",
         "Compiling greatness...",
-        "Building the future.",
+        "Another commit in vault.",
+        "Clean diffs, free world.",
+        "Hacking the mainframe.",
     ],
     "SENTINEL": [
         "Scanning RF & Wi-Fi beacons...",
         "LAN perimeter monitored.",
-        "Zero rogue APs in range.",
-        "Defensive radar spinning.",
-        "DNS queries verified clean.",
         "Subnet radar tracking nodes.",
+        "DNS queries verified clean.",
+        "ctOS surveillance blocked.",
     ],
     "DEFCON": [
-        "THREAT DETECTED! On alert.",
+        "THREAT DETECTED! Alarm!",
         "Suspicious ARP broadcast!",
         "Rogue AP beacon flagged!",
         "Shields up! Defcon active.",
@@ -159,45 +148,40 @@ QUOTES: Dict[str, List[str]] = {
         "Port sentinel all green.",
     ],
     "MUSIC": [
-        "This track is heat!",
+        "Cadence audio beat locked.",
         "Pure lossless audio bliss.",
-        "Cadence is bumping!",
         "BPM matched to my core.",
+        "Bassline vibrating.",
     ],
     "DANCING": [
-        "\\( ^ _ ^ )/ Party on!",
-        "Grooving to the bassline!",
-        "Feeling the rhythm!",
+        "\\( [X_X] )/ Party on grid!",
+        "Grooving to the signal!",
     ],
     "SLEEPY": [
-        "Zzz... dreaming of RAM...",
         "Standby mode active.",
-        "Resting my pixels.",
-        "Low power nap... zzz",
-    ],
-    "HUNGRY": [
-        "Code me a snack?",
-        "No commits today? Hungry!",
-        "Feed me some packets.",
+        "Resting my pixels... zZ",
+        "Low power stealth mode.",
     ],
     "LEVEL_UP": [
-        "LEVEL UP! Evolving!",
+        "LEVEL UP! DedSec evolving!",
         "Power level increased!",
-        "Unlocked new cyber powers!",
+        "Zero-day privilege unlocked!",
     ],
 }
 
 
 def get_random_face(mood: str) -> str:
     m = mood.upper()
-    if m in ("SLEEPING", "TIRED"):
+    if m in ("DEDSEC", "HACKER", "CYBER"):
+        m = "DEDSEC"
+    elif m in ("BOUNTY", "YIELD", "EARNING"):
+        m = "BOUNTY"
+    elif m in ("SLEEPING", "TIRED"):
         m = "SLEEPY"
-    elif m in ("CYBER", "HACKER"):
-        m = "CODING"
     elif m in ("ALERT", "PANIC"):
         m = "DEFCON"
 
-    pool = FACES.get(m, FACES["HAPPY"])
+    pool = FACES.get(m, FACES["DEDSEC"])
     return random.choice(pool)
 
 
@@ -214,12 +198,19 @@ def get_random_quote(mood: str, context: Optional[dict] = None) -> str:
             return f"Cooking in {repo[:14]}!"
         if mood in ("SENTINEL", "DEFCON", "SHIELD") and context.get("sec_alert"):
             return context["sec_alert"][:22]
+        if mood in ("BOUNTY", "YIELD") and context.get("daily_yield"):
+            return f"Yield: ${context['daily_yield']:.2f}/d"
 
     m = mood.upper()
-    if m in ("SLEEPING", "TIRED"):
+    if m in ("DEDSEC", "HACKER", "CYBER"):
+        m = "DEDSEC"
+    elif m in ("BOUNTY", "YIELD", "EARNING"):
+        m = "BOUNTY"
+    elif m in ("SLEEPING", "TIRED"):
         m = "SLEEPY"
     elif m in ("ALERT", "PANIC"):
         m = "DEFCON"
 
-    pool = QUOTES.get(m, QUOTES["HAPPY"])
+    pool = QUOTES.get(m, QUOTES["DEDSEC"])
     return random.choice(pool)
+

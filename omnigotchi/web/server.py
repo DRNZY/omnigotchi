@@ -1,8 +1,15 @@
-"""Lightweight aiohttp Web Dashboard & Live Screen Mirror for OmniGotchi with Cybersecurity Sentinel."""
+"""DedSec CyberOS Web Dashboard & Live Screen Mirror for OmniGotchi.
 
+Features authentic Watch Dogs DedSec styling (Electric Cyan, Acid Green, Glitch Magenta),
+live Satoshi & USD yield counters, active bandwidth/compute relay tracking, and white-hat
+bug bounty report extraction.
+"""
+
+from dataclasses import asdict
 import io
 import json
 import logging
+import time
 from typing import TYPE_CHECKING
 from aiohttp import web
 
@@ -16,191 +23,300 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OmniGotchi Cyber Defense Sentinel</title>
+  <title>DEDSEC // CYBEROS PI OPERATOR</title>
   <style>
     :root {
-      --bg: #0b0c10;
-      --card: #151821;
-      --subtle: #1c202c;
-      --border: #282f42;
-      --text: #e1e6f0;
-      --muted: #838ea3;
-      --accent: #58a6ff;
-      --green: #3fb950;
-      --gold: #d29922;
-      --red: #f85149;
+      --bg: #06070a;
+      --panel: #0d1017;
+      --card: #121722;
+      --border: #1e2638;
+      --cyan: #00F0FF;
+      --green: #00FF66;
+      --magenta: #FF0055;
+      --yellow: #FFE600;
+      --text: #e6edf3;
+      --muted: #6e7d9b;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
-    body { background: var(--bg); color: var(--text); padding: 24px; display: flex; justify-content: center; }
-    .container { max-width: 720px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
-    
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-    h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
-    .badges { display: flex; gap: 8px; }
-    .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #238636; color: #fff; font-weight: 600; }
-    .defcon-badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #1f6feb; color: #fff; font-weight: 700; }
-    
-    /* E-Ink Display Frame */
-    .screen-wrapper {
-      background: #c3c7c5;
-      padding: 12px;
-      border-radius: 8px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-      border: 3px solid #333;
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Courier New", "Lucida Console", Monaco, monospace; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      background-image: 
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 24px 24px;
+      min-height: 100vh;
+    }
+    .container { max-width: 820px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+
+    /* Scanline effect */
+    .scanlines {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* Header */
+    header {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      border-left: 4px solid var(--cyan);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .skull { font-size: 16px; color: var(--cyan); font-weight: bold; text-shadow: 0 0 8px rgba(0,240,255,0.6); }
+    h1 { font-size: 16px; font-weight: 800; letter-spacing: 1px; color: #fff; }
+    .motto { font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+    .header-badges { display: flex; gap: 8px; align-items: center; }
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: rgba(0,240,255,0.1);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+    }
+    .badge-alert {
+      background: rgba(255,0,85,0.15);
+      border: 1px solid var(--magenta);
+      color: var(--magenta);
+    }
+
+    /* Live Display Mirror Frame */
+    .display-box {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 14px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 8px;
+      border-top: 2px solid var(--green);
     }
-    .screen-header { width: 100%; max-width: 500px; display: flex; justify-content: space-between; margin-bottom: 6px; }
-    .screen-label { color: #333; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-    .screen-rot { color: #444; font-size: 11px; font-family: monospace; font-weight: 700; }
+    .display-header {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
     .screen-img {
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       aspect-ratio: 250 / 122;
       image-rendering: pixelated;
-      border: 2px solid #333;
+      border: 2px solid #222c3d;
       background: #000;
+      box-shadow: 0 0 20px rgba(0,240,255,0.1);
     }
 
-    /* Action Buttons */
-    .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    button {
-      padding: 10px 8px;
+    /* Yield & Bounty Matrix Panel */
+    .bounty-panel {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-left: 4px solid var(--green);
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: 1px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .bounty-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .bounty-tile {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 10px;
+    }
+    .bounty-tile-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; }
+    .bounty-tile-val { font-size: 14px; font-weight: 800; color: #fff; }
+    .val-green { color: var(--green); text-shadow: 0 0 6px rgba(0,255,102,0.4); }
+    .val-cyan { color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,0.4); }
+    .val-yellow { color: var(--yellow); }
+
+    /* Action Controls */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    button, a.btn {
+      padding: 9px 8px;
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--text);
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.15s ease;
+      text-decoration: none;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
+      transition: all 0.1s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    button:hover { background: #212638; border-color: var(--accent); }
-    button:active { transform: scale(0.98); }
-    .btn-primary { background: #238636; border-color: #2ea043; color: white; }
-    .btn-primary:hover { background: #2ea043; }
-    .btn-defend { background: #1f6feb; border-color: #388bfd; color: white; }
-    .btn-defend:hover { background: #388bfd; }
-    .btn-warning { background: #8e1515; border-color: #f85149; color: white; }
-    .btn-warning:hover { background: #b91c1c; }
+    button:hover, a.btn:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 10px rgba(0,240,255,0.2);
+    }
+    button:active, a.btn:active { transform: scale(0.98); }
+    .btn-bounty {
+      background: rgba(0, 255, 102, 0.12);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .btn-bounty:hover {
+      background: rgba(0, 255, 102, 0.25);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(0,255,102,0.4);
+    }
+    .btn-cyan {
+      background: rgba(0, 240, 255, 0.12);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
 
-    /* Stats Grid */
-    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-    .card-title { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-    .card-val { font-size: 15px; font-weight: 700; }
-    
-    /* Security Section */
-    .sec-section { background: var(--subtle); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .sec-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; color: var(--accent); }
-    .sec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px; }
-    .sec-item { background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
-    .sec-item-title { color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }
-
-    /* Tactical Deck */
-    .deck-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
-    .deck-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    /* Terminal Console */
+    .console-box {
+      border: 1px solid var(--border);
+      background: #040508;
+      padding: 12px;
+      font-size: 11px;
+      line-height: 1.4;
+      max-height: 160px;
+      overflow-y: auto;
+      border-left: 4px solid var(--magenta);
+    }
+    .log-line { color: var(--muted); font-size: 10px; }
+    .log-line span.cyan { color: var(--cyan); }
+    .log-line span.green { color: var(--green); }
+    .log-line span.magenta { color: var(--magenta); }
+    .log-line span.white { color: #fff; font-weight: bold; }
   </style>
 </head>
 <body>
+  <div class="scanlines"></div>
   <div class="container">
+    <!-- Header -->
     <header>
-      <h1>OmniGotchi <span class="badge" id="lvl-badge">Lv. 1</span></h1>
-      <div class="badges">
-        <span class="defcon-badge" id="defcon-badge">DEFCON 5 SECURE</span>
+      <div class="brand">
+        <span class="skull">[ X_X ]</span>
+        <div>
+          <h1>DEDSEC // CYBEROS OPERATOR</h1>
+          <div class="motto">"DedSec has given you the truth. Do with it what you will."</div>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge" id="lvl-badge">LV. 1 NOVICE</span>
+        <span class="badge" id="defcon-badge">DEFCON 5 SECURE</span>
       </div>
     </header>
 
-    <div class="screen-wrapper">
-      <div class="screen-header">
-        <span class="screen-label">Waveshare 2.13" E-Ink Live Mirror</span>
-        <span class="screen-rot" id="rot-label">0° • COMPANION</span>
+    <!-- Live E-Ink Canvas Mirror -->
+    <div class="display-box">
+      <div class="display-header">
+        <span>// PHYSICAL E-PAPER MIRROR (250x122 1-BIT)</span>
+        <span id="rot-label">HW: 0° • COMPANION</span>
       </div>
-      <img src="/api/screen.png" alt="Live Screen" class="screen-img" id="live-screen">
+      <img src="/api/screen.png" alt="DedSec E-Ink Screen" class="screen-img" id="live-screen">
     </div>
 
-    <!-- Quick Pet Controls -->
-    <div class="actions">
-      <button onclick="sendAction('pet')">🐾 Pet (+10)</button>
-      <button class="btn-primary" onclick="sendAction('feed')">🍕 Feed (+15)</button>
-      <button onclick="sendAction('mode')">🖥️ Toggle HUD</button>
+    <!-- Passive Micro-Yield & White-Hat Bounty Matrix -->
+    <div class="bounty-panel">
+      <div class="panel-title">
+        <span>⚡ PASSIVE YIELD & BOUNTY HARVEST MATRIX</span>
+        <span id="mesh-nodes-lbl" style="font-size:10px; color:var(--muted);">MESH: 12 RELAY NODES</span>
+      </div>
+      <div class="bounty-grid">
+        <div class="bounty-tile">
+          <div class="bounty-tile-lbl">Total Yield ($)</div>
+          <div class="bounty-tile-val val-green" id="yield-usd">$0.00</div>
+        </div>
+        <div class="bounty-tile">
+          <div class="bounty-tile-lbl">Satoshi Balance</div>
+          <div class="bounty-tile-val val-yellow" id="yield-sats">0 SATS</div>
+        </div>
+        <div class="bounty-tile">
+          <div class="bounty-tile-lbl">Daily Yield Rate</div>
+          <div class="bounty-tile-val val-cyan" id="yield-rate">$4.20 / d</div>
+        </div>
+        <div class="bounty-tile">
+          <div class="bounty-tile-lbl">Relayed Volume</div>
+          <div class="bounty-tile-val" id="yield-mb">0.0 MB</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tactical Actions Grid -->
+    <div class="actions-grid">
+      <button class="btn-bounty" onclick="triggerHarvest()">💰 Harvest Vulns</button>
+      <button class="btn-cyan" onclick="runTool('audit_wifi')">📡 Audit Wi-Fi</button>
+      <button class="btn-cyan" onclick="runTool('scan_ble')">📶 BLE Radar</button>
+      <button onclick="sendAction('scan')">🛡️ Full Scan</button>
+    </div>
+
+    <div class="actions-grid">
+      <button onclick="sendAction('pet')">🐾 Inject Pet (+10)</button>
+      <button onclick="sendAction('feed')">🍕 Feed Bytes (+15)</button>
       <button onclick="sendAction('flip')">🔄 Flip (180°)</button>
+      <button onclick="sendAction('mode')">🖥️ Toggle Mode</button>
     </div>
 
-    <!-- Tactical CyberDeck -->
-    <div class="deck-title">Tactical CyberDeck & Wi-Fi Auditing</div>
-    <div class="deck-grid">
-      <button class="btn-defend" onclick="runTool('audit_wifi')">📡 Audit My Wi-Fi</button>
-      <button class="btn-defend" onclick="runTool('scan_ble')">📶 BLE Radar Scan</button>
-      <button class="btn-defend" onclick="sendAction('scan')">🛡️ Full LAN & RF Scan</button>
-    </div>
-    <div class="deck-grid">
-      <button onclick="window.open('/api/tools/wardrive.csv')">📥 Export Wardrive CSV</button>
-      <button onclick="sendAction('recover')">⚡ Clear E-Ink Screen</button>
-      <button onclick="fetchTelemetry()">🔍 View Raw Telemetry</button>
+    <div class="actions-grid">
+      <button onclick="sendAction('recover')">⚡ Unstick E-Ink</button>
+      <a class="btn" href="/api/tools/wardrive.csv" download="wardrive.csv">📥 Wardrive CSV</a>
+      <button onclick="fetchReports()">📜 Bounty Reports</button>
+      <button onclick="fetchTelemetry()">🔍 Raw Telemetry</button>
     </div>
 
-    <!-- Security Matrix -->
-    <div class="sec-section">
-      <div class="sec-header">
-        <span>CYBERSECURITY SENTINEL & DEFENSE POSTURE</span>
-        <span id="threat-score-label">THREAT: 0%</span>
-      </div>
-      <div class="sec-grid">
-        <div class="sec-item">
-          <div class="sec-item-title">LAN Subnet Nodes</div>
-          <div id="lan-val" style="font-weight:700;">-- Nodes</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">Wi-Fi Environment</div>
-          <div id="rf-val" style="font-weight:700;">-- APs</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">Wi-Fi Posture Grade</div>
-          <div id="posture-val" style="font-weight:700; color: var(--green);">A+</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">ARP & Twin Guard</div>
-          <div id="arp-val" style="font-weight:700; color: var(--green);">SECURE</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">BLE Radar</div>
-          <div id="ble-val" style="font-weight:700;">-- Devices</div>
-        </div>
-        <div class="sec-item">
-          <div class="sec-item-title">SSH & Port Shield</div>
-          <div id="ssh-val" style="font-weight:700;">0 Blocked</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hardware & Mood Grid -->
-    <div class="grid">
-      <div class="card">
-        <div class="card-title">Mood & Personality</div>
-        <div class="card-val" id="mood-val">HAPPY</div>
-      </div>
-      <div class="card">
-        <div class="card-title">Title & Rank</div>
-        <div class="card-val" id="title-val">Script Novice</div>
-      </div>
-      <div class="card">
-        <div class="card-title">XP Progress</div>
-        <div class="card-val" id="xp-val">0 / 100</div>
-      </div>
-      <div class="card">
-        <div class="card-title">Hardware Telemetry</div>
-        <div class="card-val" id="soc-val">--°C • -- W</div>
-      </div>
+    <!-- Real-time DedSec Console Log -->
+    <div class="console-box" id="console-log">
+      <div class="log-line"><span class="cyan">[DEDSEC-INIT]</span> DedSec CyberOS Sentinel loaded on Raspberry Pi Zero 2 W.</div>
+      <div class="log-line"><span class="green">[YIELD-ENGINE]</span> Bandwidth & compute proof-of-uptime accumulator initialized ($4.20/d).</div>
+      <div class="log-line"><span class="magenta">[SENTINEL]</span> Local perimeter defense listening on wlan0. All shields nominal.</div>
     </div>
   </div>
 
   <script>
+    function logMsg(tag, msg, color) {
+      const box = document.getElementById('console-log');
+      const now = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `<span class="${color}">[${now}] [${tag}]</span> ${msg}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
     function refreshScreen() {
       const img = document.getElementById('live-screen');
       img.src = '/api/screen.png?t=' + Date.now();
@@ -212,46 +328,64 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         const res = await fetch('/api/stats');
         if (res.ok) {
           const data = await res.json();
-          document.getElementById('lvl-badge').innerText = 'Lv. ' + data.brain.level;
+          document.getElementById('lvl-badge').innerText = 'LV. ' + data.brain.level + ' ' + (data.brain.title || 'OPERATOR').toUpperCase();
           document.getElementById('defcon-badge').innerText = 'DEFCON ' + data.brain.defcon + ' ' + (data.security?.defcon_status || 'SECURE');
-          document.getElementById('rot-label').innerText = (data.brain.rotation || 0) + '° • ' + (data.brain.display_mode || 'companion').toUpperCase();
-          document.getElementById('mood-val').innerText = data.brain.mood + ' ' + data.brain.face;
-          document.getElementById('title-val').innerText = data.brain.title;
-          document.getElementById('xp-val').innerText = data.brain.xp + ' / ' + data.brain.xp_next;
+          document.getElementById('rot-label').innerText = 'HW: ' + (data.brain.rotation || 0) + '° • ' + (data.brain.display_mode || 'companion').toUpperCase();
 
-          if (data.security) {
-            document.getElementById('lan-val').innerText = data.security.lan_hosts_count + ' Nodes';
-            document.getElementById('rf-val').innerText = data.security.wifi_aps_count + ' APs';
-            document.getElementById('posture-val').innerText = (data.security.wifi_posture?.grade || 'A') + ' (' + (data.security.wifi_posture?.score || 100) + '%)';
-            document.getElementById('arp-val').innerText = data.security.arp_spoof_detected ? 'POISON ALERT' : 'SECURE';
-            document.getElementById('arp-val').style.color = data.security.arp_spoof_detected ? 'var(--red)' : 'var(--green)';
-            document.getElementById('ble-val').innerText = (data.security.ble_devices_count || 0) + ' Beacons';
-            document.getElementById('ssh-val').innerText = data.security.ssh_failed_attempts + ' Blk / ' + (data.security.open_ports?.length || 0) + ' P';
-            document.getElementById('threat-score-label').innerText = 'THREAT: ' + (data.security.threat_score || 0) + '%';
-          }
-          if (data.net) {
-            document.getElementById('soc-val').innerText = data.net.temp_c + '°C • ' + (data.net.wattage_w || 0.85) + 'W • ' + data.net.ping_ms + 'ms';
+          if (data.bounty && data.bounty.ledger) {
+            const l = data.bounty.ledger;
+            document.getElementById('yield-usd').innerText = '$' + (l.total_usd_earned || 0).toFixed(3);
+            document.getElementById('yield-sats').innerText = (l.total_sats_earned || 0).toLocaleString() + ' SATS';
+            document.getElementById('yield-rate').innerText = '$' + (l.daily_usd_rate || 4.20).toFixed(2) + ' / d';
+            document.getElementById('yield-mb').innerText = (l.total_relayed_mb || 0).toFixed(1) + ' MB';
+            document.getElementById('mesh-nodes-lbl').innerText = 'MESH: ' + (l.active_mesh_nodes || 12) + ' NODES • SHARES: ' + (l.total_compute_shares || 0);
           }
         }
       } catch (e) {}
     }
-    setInterval(updateStats, 2000);
+    setInterval(updateStats, 2500);
     updateStats();
 
     async function sendAction(act) {
+      logMsg('ACTION', 'Dispatching command: ' + act, 'cyan');
       await fetch('/api/action/' + act, { method: 'POST' });
       updateStats();
-      setTimeout(refreshScreen, 150);
+      setTimeout(refreshScreen, 200);
+    }
+
+    async function triggerHarvest() {
+      logMsg('BOUNTY', 'Launching white-hat vulnerability harvest across local perimeter...', 'green');
+      const res = await fetch('/api/action/harvest', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        const r = data.bounty?.latest_report;
+        if (r) {
+          logMsg('BOUNTY-DONE', `Audit complete: ${r.total_findings} findings (Crit: ${r.critical_count}, High: ${r.high_count}). Value: $${r.estimated_bounty_usd.toFixed(2)}`, 'green');
+          alert(`DEDSEC BOUNTY HARVEST COMPLETE\\n\\nFindings: ${r.total_findings}\\nCritical: ${r.critical_count}\\nHigh: ${r.high_count}\\nEst. Value: $${r.estimated_bounty_usd.toFixed(2)}\\n\\n${r.summary}`);
+        }
+      }
+      updateStats();
+      setTimeout(refreshScreen, 200);
     }
 
     async function runTool(tool) {
+      logMsg('TOOL', 'Executing tactical sentinel tool: ' + tool, 'cyan');
       const res = await fetch('/api/tools/' + tool, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        alert(tool.toUpperCase() + ' Complete!\n' + JSON.stringify(data, null, 2));
+        logMsg('TOOL-DONE', tool.toUpperCase() + ' finished with success.', 'green');
       }
       updateStats();
-      setTimeout(refreshScreen, 150);
+      setTimeout(refreshScreen, 200);
+    }
+
+    async function fetchReports() {
+      const res = await fetch('/api/bounty/reports');
+      if (res.ok) {
+        const data = await res.json();
+        const win = window.open('', '_blank');
+        win.document.write('<pre style="background:#06070a;color:#00FF66;padding:20px;font-family:monospace;">' + JSON.stringify(data, null, 2) + '</pre>');
+      }
     }
 
     async function fetchTelemetry() {
@@ -259,7 +393,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       if (res.ok) {
         const data = await res.json();
         const win = window.open('', '_blank');
-        win.document.write('<pre style="background:#0b0c10;color:#3fb950;padding:20px;font-family:monospace;">' + JSON.stringify(data, null, 2) + '</pre>');
+        win.document.write('<pre style="background:#06070a;color:#00F0FF;padding:20px;font-family:monospace;">' + JSON.stringify(data, null, 2) + '</pre>');
       }
     }
   </script>
@@ -284,7 +418,11 @@ class GotchiWebServer:
         self.app.router.add_get("/api/stats", self._handle_stats_json)
         self.app.router.add_get("/api/security/telemetry", self._handle_security_telemetry)
         self.app.router.add_get("/api/tools/wardrive.csv", self._handle_export_wardrive)
-        
+        self.app.router.add_get("/api/bounty/stats", self._handle_bounty_stats)
+        self.app.router.add_get("/api/bounty/reports", self._handle_bounty_reports)
+        self.app.router.add_get("/api/bounty/report/{id}", self._handle_single_report)
+        self.app.router.add_get("/api/bounty/report/{id}/markdown", self._handle_report_markdown)
+
         # Actions
         self.app.router.add_post("/api/action/pet", self._handle_pet)
         self.app.router.add_post("/api/action/feed", self._handle_feed)
@@ -292,7 +430,8 @@ class GotchiWebServer:
         self.app.router.add_post("/api/action/scan", self._handle_scan)
         self.app.router.add_post("/api/action/mode", self._handle_mode)
         self.app.router.add_post("/api/action/recover", self._handle_recover)
-        
+        self.app.router.add_post("/api/action/harvest", self._handle_harvest)
+
         # Tools
         self.app.router.add_post("/api/tools/audit_wifi", self._handle_audit_wifi)
         self.app.router.add_post("/api/tools/scan_ble", self._handle_scan_ble)
@@ -302,7 +441,7 @@ class GotchiWebServer:
         await self.runner.setup()
         self.site = web.TCPSite(self.runner, self.host, self.port)
         await self.site.start()
-        logger.info(f"OmniGotchi Web Companion running on http://{self.host}:{self.port}")
+        logger.info(f"OmniGotchi DedSec CyberOS Web Companion running on http://{self.host}:{self.port}")
 
     async def stop(self):
         if self.runner:
@@ -349,12 +488,72 @@ class GotchiWebServer:
             "audio": self.engine.audio_data,
             "net": self.engine.net_data,
             "security": self.engine.security_data,
+            "bounty": self.engine.bounty_data,
         }
         return web.Response(
             text=json.dumps(data),
             content_type="application/json",
             headers={"Cache-Control": "no-cache"},
         )
+
+    async def _handle_bounty_stats(self, request: web.Request) -> web.Response:
+        return web.Response(
+            text=json.dumps(self.engine.bounty_data),
+            content_type="application/json",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    async def _handle_bounty_reports(self, request: web.Request) -> web.Response:
+        reports = [asdict(r) for r in self.engine.bounty_engine.reports]
+        return web.Response(
+            text=json.dumps(reports),
+            content_type="application/json",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    async def _handle_single_report(self, request: web.Request) -> web.Response:
+        report_id = request.match_info.get("id")
+        for r in self.engine.bounty_engine.reports:
+            if r.id == report_id:
+                return web.Response(
+                    text=json.dumps(asdict(r)),
+                    content_type="application/json",
+                    headers={"Cache-Control": "no-cache"},
+                )
+        return web.Response(status=404, text=json.dumps({"error": "Report not found"}), content_type="application/json")
+
+    async def _handle_report_markdown(self, request: web.Request) -> web.Response:
+        report_id = request.match_info.get("id")
+        for r in self.engine.bounty_engine.reports:
+            if r.id == report_id:
+                lines = [
+                    f"# DEDSEC WHITE-HAT VULNERABILITY AUDIT REPORT: {r.id}",
+                    f"**Generated:** {time.ctime(r.timestamp)}",
+                    f"**Target Perimeter:** {r.target_network}",
+                    f"**Total Findings:** {r.total_findings} (Critical: {r.critical_count}, High: {r.high_count}, Medium: {r.medium_count}, Low: {r.low_count})",
+                    f"**Estimated Bug Bounty Value:** ${r.estimated_bounty_usd:.2f} USD",
+                    "",
+                    "## Executive Summary",
+                    f"{r.summary}",
+                    "",
+                    "## Vulnerability Findings & Remediation Roadmap",
+                ]
+                for f in r.findings:
+                    lines.extend([
+                        f"### [{f.get('severity', 'INFO')}] {f.get('title')}",
+                        f"- **Target/Port:** `{f.get('target')}`",
+                        f"- **CVE Reference:** `{f.get('cve_ref') or 'N/A'}`",
+                        f"- **Estimated Value:** ${f.get('bounty_value_usd', 0.0):.2f}",
+                        f"- **Description:** {f.get('description')}",
+                        f"- **Remediation:** {f.get('remediation')}",
+                        "",
+                    ])
+                return web.Response(
+                    text="\n".join(lines),
+                    content_type="text/markdown",
+                    headers={"Content-Disposition": f'attachment; filename="dedsec_bounty_{r.id}.md"'},
+                )
+        return web.Response(status=404, text="Report not found", content_type="text/plain")
 
     async def _handle_security_telemetry(self, request: web.Request) -> web.Response:
         return web.Response(
@@ -388,6 +587,10 @@ class GotchiWebServer:
     async def _handle_scan(self, request: web.Request) -> web.Response:
         sec_data = await self.engine.scan_security()
         return web.Response(text=json.dumps({"ok": True, "security": sec_data}), content_type="application/json")
+
+    async def _handle_harvest(self, request: web.Request) -> web.Response:
+        bounty_data = await self.engine.scan_bounty()
+        return web.Response(text=json.dumps({"ok": True, "bounty": bounty_data}), content_type="application/json")
 
     async def _handle_audit_wifi(self, request: web.Request) -> web.Response:
         res = await self.engine.audit_wifi()

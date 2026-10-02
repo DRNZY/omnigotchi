@@ -10,6 +10,7 @@ from omnigotchi.core.brain import GotchiBrain
 from omnigotchi.display.mock_driver import MockEPaperDriver
 from omnigotchi.display.renderer import GotchiRenderer
 from omnigotchi.modules.audio_module import AudioModule
+from omnigotchi.modules.bounty_engine import BountyEngine
 from omnigotchi.modules.dev_module import DevModule
 from omnigotchi.modules.net_module import NetModule
 from omnigotchi.modules.security_module import SecurityModule
@@ -27,7 +28,7 @@ class GotchiEngine:
         self.brain = GotchiBrain(state_file=config.state_file, name=config.name)
         self.renderer = GotchiRenderer(width=config.display_width, height=config.display_height)
         
-        # Modules
+        # Modules & Autonomous Engines
         self.dev_module = DevModule(
             username=config.github_user,
             token=config.github_token,
@@ -36,6 +37,7 @@ class GotchiEngine:
         self.audio_module = AudioModule(cadence_url=config.cadence_url)
         self.net_module = NetModule(target_host=config.ping_host, timeout_s=config.ping_timeout_s)
         self.security_module = SecurityModule()
+        self.bounty_engine = BountyEngine()
 
         # Display Driver
         if use_hardware:
@@ -61,6 +63,7 @@ class GotchiEngine:
         self.audio_data = {}
         self.net_data = {}
         self.security_data = {}
+        self.bounty_data = self.bounty_engine.get_stats()
         self.current_image: Optional[Image.Image] = None
         self.partial_count = 0
         self.running = False
@@ -69,13 +72,14 @@ class GotchiEngine:
     async def start(self):
         """Starts all async polling and rendering tasks."""
         self.running = True
-        logger.info(f"Starting OmniGotchi engine with Cyber Sentinel (Hardware={self.use_hardware})...")
+        logger.info(f"Starting OmniGotchi engine with DedSec CyberOS & Bounty Engine (Hardware={self.use_hardware})...")
 
         # Initial fast telemetry poll
         self.dev_data = await self.dev_module.poll()
         self.audio_data = await self.audio_module.poll()
         self.net_data = await self.net_module.poll()
         self.security_data = await self.security_module.poll()
+        self.bounty_data = self.bounty_engine.get_stats()
 
         # Render first initial frame
         self.trigger_render(partial=False)
@@ -90,6 +94,7 @@ class GotchiEngine:
             asyncio.create_task(self._audio_worker()),
             asyncio.create_task(self._net_worker()),
             asyncio.create_task(self._security_worker()),
+            asyncio.create_task(self._bounty_worker()),
             asyncio.create_task(self._render_worker()),
         ]
 
@@ -156,6 +161,14 @@ class GotchiEngine:
         self.trigger_render(partial=False)
         return ble_data
 
+    async def scan_bounty(self) -> dict:
+        """Triggers a background white-hat vulnerability harvest and awards Satoshi/XP credit."""
+        report = await self.bounty_engine.scan_vulnerabilities()
+        self.bounty_data = self.bounty_engine.get_stats()
+        self.brain.gain_xp(35, "bounty_harvest")
+        self.trigger_render(partial=False)
+        return self.bounty_data
+
     def recover_display(self):
         """Forces display driver recovery and redraws full frame."""
         if hasattr(self.display_driver, "recover"):
@@ -177,6 +190,7 @@ class GotchiEngine:
                 self.audio_data,
                 self.net_data,
                 self.security_data,
+                self.bounty_data,
             )
 
             # Web & OmniHUD mirror image (always straight and upright on computer)
@@ -204,6 +218,25 @@ class GotchiEngine:
             except Exception as e:
                 logger.error(f"Render error: {e}")
             await asyncio.sleep(self.config.screen_refresh_interval)
+
+    async def _bounty_worker(self):
+        """Continuously accumulates passive compute/relay yield and periodic vulnerability harvests."""
+        tick_interval = 10.0
+        cycles = 0
+        while self.running:
+            try:
+                rx = self.net_data.get("rx_kbps", 0.0)
+                tx = self.net_data.get("tx_kbps", 0.0)
+                self.bounty_engine.tick_yield(tick_interval, rx_kbps=rx, tx_kbps=tx)
+                self.bounty_data = self.bounty_engine.get_stats()
+                cycles += 1
+                # Run automatic vulnerability harvest every 60 cycles (~10 minutes)
+                if cycles % 60 == 0:
+                    await self.bounty_engine.scan_vulnerabilities()
+                    self.bounty_data = self.bounty_engine.get_stats()
+            except Exception as e:
+                logger.debug(f"Bounty worker error: {e}")
+            await asyncio.sleep(tick_interval)
 
     async def _security_worker(self):
         while self.running:
