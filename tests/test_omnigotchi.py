@@ -43,26 +43,29 @@ class TestOmniGotchi(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(brain.state.level, 2)
             self.assertEqual(brain.state.xp, 10)
 
-            # Test feeding and petting
-            initial_hunger = brain.state.hunger
-            brain.feed(20)
-            self.assertGreaterEqual(brain.state.hunger, initial_hunger)
-            self.assertEqual(brain.state.total_feeds, 1)
+            # Test siphon and overclock
+            initial_siphon = brain.state.siphon_power
+            brain.siphon(20)
+            self.assertGreaterEqual(brain.state.siphon_power, initial_siphon)
+            self.assertEqual(brain.state.total_siphons, 1)
 
-            brain.pet()
-            self.assertEqual(brain.state.total_pets, 1)
+            brain.overclock()
+            self.assertEqual(brain.state.overclock_level, 2)
 
-            # Test display mode toggle
+            # Test 3-way display mode cycle
+            self.assertEqual(brain.state.display_mode, "infiltrator")
             mode = brain.toggle_display_mode()
             self.assertEqual(mode, "sentinel")
             mode = brain.toggle_display_mode()
-            self.assertEqual(mode, "companion")
+            self.assertEqual(mode, "terminal")
+            mode = brain.toggle_display_mode()
+            self.assertEqual(mode, "infiltrator")
 
             # Verify state reloaded from file correctly
             brain2 = GotchiBrain(state_file=state_file, name="OmniTest")
             self.assertEqual(brain2.state.level, 2)
-            self.assertEqual(brain2.state.total_feeds, 1)
-            self.assertEqual(brain2.state.total_pets, 1)
+            self.assertEqual(brain2.state.total_siphons, 1)
+            self.assertEqual(brain2.state.overclock_level, 2)
         finally:
             if os.path.exists(state_file):
                 os.unlink(state_file)
@@ -119,7 +122,8 @@ class TestOmniGotchi(unittest.IsolatedAsyncioTestCase):
         net_data = {"ping_ms": 18.2, "cpu_pct": 14, "temp_c": 42.0, "ram_pct": 28}
         sec_data = {"defcon_level": 5, "lan_hosts_count": 8, "wifi_aps_count": 3}
 
-        # Companion mode
+        # Infiltrator mode (default)
+        state.display_mode = "infiltrator"
         img = renderer.render(state, dev_data, audio_data, net_data, sec_data)
         self.assertIsInstance(img, Image.Image)
         self.assertEqual(img.size, (250, 122))
@@ -131,6 +135,13 @@ class TestOmniGotchi(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(img_sentinel, Image.Image)
         self.assertEqual(img_sentinel.size, (250, 122))
         self.assertEqual(img_sentinel.mode, "1")
+
+        # Terminal mode
+        state.display_mode = "terminal"
+        img_term = renderer.render(state, dev_data, audio_data, net_data, sec_data)
+        self.assertIsInstance(img_term, Image.Image)
+        self.assertEqual(img_term.size, (250, 122))
+        self.assertEqual(img_term.mode, "1")
 
     def test_mock_driver_and_ascii(self):
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tf:

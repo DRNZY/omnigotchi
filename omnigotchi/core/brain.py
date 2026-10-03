@@ -1,4 +1,4 @@
-"""Gotchi Brain: State Machine, Mood Resolver, and RPG Leveling Engine."""
+"""DedSec CyberDeck Brain: State Machine, Exploit Progression, and System Telemetry Engine."""
 
 import json
 import logging
@@ -21,6 +21,8 @@ TITLES = [
     (20, "Zero-Day Architect"),
 ]
 
+MODES = ["infiltrator", "sentinel", "terminal"]
+
 
 @dataclass
 class GotchiState:
@@ -28,36 +30,38 @@ class GotchiState:
     level: int = 1
     xp: int = 0
     xp_next: int = 100
-    hunger: float = 100.0  # 100 is full, 0 is starving
-    energy: float = 100.0  # 100 is energetic, 0 is exhausted
-    happiness: float = 100.0
+    
+    # DedSec System Telemetry
+    siphon_power: float = 100.0  # 0 to 100%
+    overclock_level: int = 1     # 1 to 5
+    system_integrity: float = 100.0
     mood: str = "DEDSEC"
-    face: str = "[ X _ X ]"
+    face: str = "[ ☠ _ ☠ ]"
     quote: str = "DedSec gives you truth."
     title: str = "Script Novice"
-    badges: List[str] = field(default_factory=lambda: ["DEDSEC-ROOT", "CTOS-EXPLOIT", "BOUNTY-V1"])
+    badges: List[str] = field(default_factory=lambda: ["DEDSEC-ROOT", "CTOS-EXPLOIT", "BOUNTY-V1", "ZERO-DAY"])
     
-    # Visual settings
+    # Visual settings & 3 CyberOS Modes
     rotation: int = 0  # 0 or 180
-    display_mode: str = "companion"  # "companion" or "sentinel"
+    display_mode: str = "infiltrator"  # "infiltrator", "sentinel", or "terminal"
     
     # Cybersecurity & DEFCON
     defcon: int = 5
     threat_status: str = "SECURE"
     
-    # Life statistics
+    # Exploit & Yield statistics
+    total_siphons: int = 0
+    total_harvests: int = 0
+    total_security_scans: int = 0
     total_commits: int = 0
     total_tracks_listened: int = 0
-    total_pets: int = 0
-    total_feeds: int = 0
-    total_security_scans: int = 0
     created_at: float = field(default_factory=time.time)
     last_tick: float = field(default_factory=time.time)
     last_active: float = field(default_factory=time.time)
 
 
 class GotchiBrain:
-    def __init__(self, state_file: str, name: str = "Omni"):
+    def __init__(self, state_file: str, name: str = "DEDSEC"):
         self.state_file = state_file
         self.state = self._load_or_create(name)
         self.last_quote_change = time.time()
@@ -68,9 +72,11 @@ class GotchiBrain:
             try:
                 with open(self.state_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    # Filter only fields known to GotchiState
                     valid_keys = GotchiState.__dataclass_fields__.keys()
                     filtered = {k: v for k, v in data.items() if k in valid_keys}
+                    # Migrate legacy modes
+                    if filtered.get("display_mode") == "companion":
+                        filtered["display_mode"] = "infiltrator"
                     return GotchiState(**filtered)
             except Exception as e:
                 logger.warning(f"Could not load state, creating fresh: {e}")
@@ -89,14 +95,27 @@ class GotchiBrain:
             logger.error(f"Failed to save state: {e}")
 
     def toggle_display_mode(self) -> str:
-        """Toggles between standard cyberpet companion and cyber defense sentinel HUD."""
-        new_mode = "sentinel" if self.state.display_mode == "companion" else "companion"
-        self.state.display_mode = new_mode
+        """Cycles through the 3 DedSec CyberOS display modes."""
+        cur = self.state.display_mode
+        if cur == "infiltrator":
+            next_mode = "sentinel"
+        elif cur == "sentinel":
+            next_mode = "terminal"
+        else:
+            next_mode = "infiltrator"
+        self.state.display_mode = next_mode
         self._save()
-        return new_mode
+        logger.info(f"DedSec CyberOS mode switched to: {next_mode.upper()}")
+        return next_mode
+
+    def set_display_mode(self, mode: str) -> str:
+        if mode in MODES:
+            self.state.display_mode = mode
+            self._save()
+        return self.state.display_mode
 
     def gain_xp(self, amount: int, reason: str = "") -> bool:
-        """Add XP and handle level-ups. Returns True if leveled up."""
+        """Add XP and handle hacker rank progression."""
         self.state.xp += amount
         leveled_up = False
         while self.state.xp >= self.state.xp_next:
@@ -105,7 +124,7 @@ class GotchiBrain:
             self.state.xp_next = int(self.state.xp_next * 1.35)
             self._update_title()
             leveled_up = True
-            logger.info(f"Level up! Now Level {self.state.level} ({self.state.title})")
+            logger.info(f"Rank Upgrade! Now Level {self.state.level} ({self.state.title})")
 
         if leveled_up:
             self.state.mood = "LEVEL_UP"
@@ -126,32 +145,39 @@ class GotchiBrain:
                 current_title = title
         self.state.title = current_title
 
-    def feed(self, amount: float = 30.0):
-        self.state.hunger = min(100.0, self.state.hunger + amount)
-        self.state.happiness = min(100.0, self.state.happiness + 15.0)
-        self.state.total_feeds += 1
-        self.gain_xp(15, "feed")
-        self.state.mood = "HAPPY"
-        self.state.face = "( ^‿^ )"
-        self.state.quote = "Nom nom nom! Yummy bytes!"
+    def siphon(self, amount: float = 25.0):
+        """Siphons ctOS mesh cycles, boosts siphon power, and awards XP."""
+        self.state.siphon_power = min(100.0, self.state.siphon_power + amount)
+        self.state.total_siphons += 1
+        self.gain_xp(20, "siphon")
+        self.state.mood = "INFILTRATOR"
+        self.state.face = "[ X _ X ]"
+        self.state.quote = "ctOS bandwidth siphoned. Sats credited."
         self.last_quote_change = time.time()
         self._save()
 
-    def pet(self):
-        self.state.happiness = min(100.0, self.state.happiness + 20.0)
-        self.state.total_pets += 1
-        self.gain_xp(10, "pet")
-        self.state.mood = "HAPPY"
-        self.state.face = "( ◕‿◕ )"
-        self.state.quote = "Aww, thanks human! <3"
+    def overclock(self):
+        """Toggles hardware overclock multiplier for maximum mesh yield."""
+        self.state.overclock_level = (self.state.overclock_level % 5) + 1
+        self.gain_xp(15, "overclock")
+        self.state.mood = "OVERCLOCK"
+        self.state.face = "[ * _ * ]"
+        self.state.quote = f"Core Overclock Level {self.state.overclock_level} engaged."
         self.last_quote_change = time.time()
         self._save()
+
+    # Backwards-compatible aliases for legacy triggers
+    def feed(self, amount: float = 30.0):
+        self.siphon(amount)
+
+    def pet(self):
+        self.overclock()
 
     def record_security_scan(self, defcon: int, status: str):
         self.state.total_security_scans += 1
         self.state.defcon = defcon
         self.state.threat_status = status
-        self.gain_xp(20, "security_scan")
+        self.gain_xp(25, "security_scan")
         self._save()
 
     def resolve_mood(
@@ -169,18 +195,16 @@ class GotchiBrain:
         dt = now - self.state.last_tick
         self.state.last_tick = now
 
-        # Passive hunger decay: ~10% per hour
+        # Decay siphon power slowly over time
         hours_passed = dt / 3600.0
-        self.state.hunger = max(0.0, self.state.hunger - (hours_passed * 10.0))
+        self.state.siphon_power = max(10.0, self.state.siphon_power - (hours_passed * 8.0))
 
-        # Check hour for night / sleep mode (between 00:00 and 07:00 if idle)
         import datetime
         current_hour = datetime.datetime.now().hour
         is_night = current_hour >= 0 and current_hour < 7
         is_playing = audio_data.get("is_playing", False)
         is_coding = dev_data.get("recent_commits_24h", 0) > 0 or dev_data.get("is_active_repo", False)
         high_ping = net_data.get("ping_ms", 0) > 250 or net_data.get("is_offline", False)
-        is_starving = self.state.hunger < 20.0
 
         sec = security_data or {}
         defcon = sec.get("defcon_level", 5)
@@ -190,7 +214,7 @@ class GotchiBrain:
         self.state.threat_status = sec.get("defcon_status", "SECURE")
 
         context = {}
-        target_mood = "HAPPY"
+        target_mood = "DEDSEC"
 
         # Security threats take top priority
         if defcon <= 2 or arp_spoof or evil_twin:
@@ -209,19 +233,15 @@ class GotchiBrain:
             context["last_repo"] = dev_data.get("last_repo", "")
         elif self.state.display_mode == "sentinel":
             target_mood = "SENTINEL"
-        elif is_starving:
-            target_mood = "HUNGRY"
         elif is_night and not is_playing and not is_coding:
             target_mood = "SLEEPING"
         else:
-            if dev_data.get("streak_days", 0) > 2:
-                target_mood = "HAPPY"
-                context["streak_days"] = dev_data.get("streak_days")
+            target_mood = "DEDSEC"
 
         self.state.mood = target_mood
 
-        # Update face & quote periodically (every 3.5s or when mood changes)
-        if (now - self.last_quote_change) > 3.5 or self.state.face == "":
+        # Update face & quote periodically (every 4s or when mood changes)
+        if (now - self.last_quote_change) > 4.0 or self.state.face == "":
             self.state.face = get_random_face(target_mood)
             self.state.quote = get_random_quote(target_mood, context)
             self.last_quote_change = now

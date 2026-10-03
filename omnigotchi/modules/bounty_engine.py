@@ -9,6 +9,8 @@ import json
 import logging
 import os
 import socket
+import shutil
+import subprocess
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -30,6 +32,20 @@ class YieldLedger:
     total_sats_earned: int = 0
     daily_usd_rate: float = 4.20
     active_mesh_nodes: int = 12
+    
+    # Real Hardware Electricity & Net Profit Tracking
+    pi_wattage: float = 0.85              # Average Pi Zero 2 W power draw in Watts
+    electricity_kwh_cost: float = 0.30     # Electricity price in $/kWh (or €/kWh)
+    daily_power_cost_usd: float = 0.00612  # (0.85W * 24h / 1000) * $0.30 = ~$0.006/day
+    total_power_cost_usd: float = 0.0     # Total electricity cost accumulated
+    net_profit_usd: float = 0.0           # Gross USD Earned - Total Power Cost
+    
+    # Real Passive Earning Daemon Integration
+    real_daemon_name: Optional[str] = None     # "EarnApp", "Pawns.app", "Bitping", etc.
+    real_daemon_status: str = "SIMULATED"      # "ONLINE", "STOPPED", "SIMULATED"
+    real_daemon_node_id: Optional[str] = None  # Device UUID or Node ID
+    is_real_yield_active: bool = False
+    
     last_payout_ts: float = field(default_factory=time.time)
     last_update_ts: float = field(default_factory=time.time)
 
@@ -70,6 +86,7 @@ class BountyEngine:
         self.is_scanning = False
         self.last_scan_ts = 0.0
         self.recent_bounties_found = 0
+        self._probe_real_daemons()
 
     def _load_ledger(self) -> YieldLedger:
         if LEDGER_FILE.exists():
@@ -104,8 +121,50 @@ class BountyEngine:
                 pass
         return loaded
 
+    def _probe_real_daemons(self):
+        """Probes system for real passive sharing micro-daemons (EarnApp, Pawns.app, Bitping)."""
+        # 1. EarnApp
+        earnapp_bin = shutil.which("earnapp") or "/usr/bin/earnapp" or "/usr/local/bin/earnapp"
+        if earnapp_bin and os.path.exists(str(earnapp_bin)):
+            self.ledger.real_daemon_name = "EarnApp"
+            self.ledger.is_real_yield_active = True
+            try:
+                out = subprocess.run([str(earnapp_bin), "status"], capture_output=True, text=True, timeout=2)
+                if "Online" in out.stdout or "online" in out.stdout:
+                    self.ledger.real_daemon_status = "ONLINE"
+                else:
+                    self.ledger.real_daemon_status = "INSTALLED"
+                
+                node_out = subprocess.run([str(earnapp_bin), "show-node-id"], capture_output=True, text=True, timeout=2)
+                if node_out.returncode == 0 and node_out.stdout.strip():
+                    self.ledger.real_daemon_node_id = node_out.stdout.strip()
+            except Exception:
+                self.ledger.real_daemon_status = "ACTIVE"
+            return
+
+        # 2. Pawns CLI (IPRoyal)
+        pawns_bin = shutil.which("pawns-cli") or shutil.which("pawns")
+        if pawns_bin:
+            self.ledger.real_daemon_name = "Pawns.app"
+            self.ledger.is_real_yield_active = True
+            self.ledger.real_daemon_status = "ONLINE"
+            return
+
+        # 3. Bitping
+        bitping_bin = shutil.which("bitping") or shutil.which("bitping-node")
+        if bitping_bin:
+            self.ledger.real_daemon_name = "Bitping"
+            self.ledger.is_real_yield_active = True
+            self.ledger.real_daemon_status = "ONLINE"
+            return
+
+        # Default: Pure DedSec Simulation
+        self.ledger.is_real_yield_active = False
+        self.ledger.real_daemon_status = "SIMULATED"
+        self.ledger.real_daemon_name = "ctOS Mesh Relay (Simulated)"
+
     def tick_yield(self, elapsed_sec: float, rx_kbps: float = 0.0, tx_kbps: float = 0.0):
-        """Accumulates uptime yield, bandwidth relay metrics, and passive credits."""
+        """Accumulates uptime yield, bandwidth relay metrics, electricity power cost, and net profit."""
         hours = elapsed_sec / 3600.0
         self.ledger.total_uptime_hours += hours
 
@@ -119,10 +178,25 @@ class BountyEngine:
         new_shares = int(elapsed_sec / 45.0)
         self.ledger.total_compute_shares += new_shares
 
-        # Yield rate: ~$4.20/day baseline -> ~$0.175/hour
-        hourly_rate = self.ledger.daily_usd_rate / 24.0
+        # Gross Yield rate:
+        # If a real daemon is installed, real rate is ~$0.15/day ($0.00625/hr)
+        # In simulated DedSec mode, uses the $4.20/d game benchmark
+        if self.ledger.is_real_yield_active:
+            hourly_rate = 0.15 / 24.0
+        else:
+            hourly_rate = self.ledger.daily_usd_rate / 24.0
+
         usd_inc = hourly_rate * hours
         self.ledger.total_usd_earned += usd_inc
+
+        # Electricity Power Cost Calculation (0.85W for Pi Zero 2 W)
+        kwh_consumed = (self.ledger.pi_wattage * hours) / 1000.0
+        cost_inc = kwh_consumed * self.ledger.electricity_kwh_cost
+        self.ledger.total_power_cost_usd += cost_inc
+        self.ledger.daily_power_cost_usd = (self.ledger.pi_wattage * 24.0 / 1000.0) * self.ledger.electricity_kwh_cost
+
+        # Net Profit = Total Earned - Power Cost
+        self.ledger.net_profit_usd = max(0.0, self.ledger.total_usd_earned - self.ledger.total_power_cost_usd)
 
         # 1 USD approx 1500 sats
         self.ledger.total_sats_earned = int(self.ledger.total_usd_earned * 1500)

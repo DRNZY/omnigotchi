@@ -23,74 +23,118 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DEDSEC // CYBEROS PI OPERATOR</title>
+  <title>DEDSEC // TECHNO-STREET OPERATIVE DECK</title>
   <style>
     :root {
       --bg: #06070a;
-      --panel: #0d1017;
-      --card: #121722;
-      --border: #1e2638;
+      --panel: #0a0e17;
+      --card: #0f1522;
+      --border: #1a2336;
       --cyan: #00F0FF;
       --green: #00FF66;
       --magenta: #FF0055;
       --yellow: #FFE600;
-      --text: #e6edf3;
-      --muted: #6e7d9b;
+      --text: #f0f6fc;
+      --muted: #7284a8;
+      --dither: #182236;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Courier New", "Lucida Console", Monaco, monospace; }
     body {
       background: var(--bg);
       color: var(--text);
-      padding: 20px;
+      padding: 18px;
       display: flex;
       justify-content: center;
       background-image: 
-        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-      background-size: 24px 24px;
+        radial-gradient(var(--border) 15%, transparent 16%),
+        radial-gradient(rgba(0, 240, 255, 0.05) 15%, transparent 16%);
+      background-size: 16px 16px, 32px 32px;
+      background-position: 0 0, 8px 8px;
       min-height: 100vh;
     }
-    .container { max-width: 820px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+    .container { max-width: 840px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
-    /* Scanline effect */
+    /* Scanline and CRT Glitch Overlay */
     .scanlines {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
       background-size: 100% 4px;
       z-index: 999;
       pointer-events: none;
-      opacity: 0.6;
+      opacity: 0.7;
     }
 
-    /* Header */
+    /* Chromatic Aberration Text Effect */
+    .glitch-text {
+      position: relative;
+      display: inline-block;
+      text-shadow: -1.5px 0 var(--magenta), 1.5px 0 var(--cyan);
+      letter-spacing: 1.5px;
+    }
+
+    /* Stencil Cutout Header */
     header {
       border: 1px solid var(--border);
       background: var(--panel);
-      padding: 12px 16px;
+      padding: 14px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: relative;
-      border-left: 4px solid var(--cyan);
+      border-left: 5px solid var(--magenta);
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+      box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);
     }
-    .brand { display: flex; align-items: center; gap: 10px; }
-    .skull { font-size: 16px; color: var(--cyan); font-weight: bold; text-shadow: 0 0 8px rgba(0,240,255,0.6); }
-    h1 { font-size: 16px; font-weight: 800; letter-spacing: 1px; color: #fff; }
-    .motto { font-size: 10px; color: var(--muted); letter-spacing: 0.5px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    
+    /* Interactive Wrench LED Goggles */
+    .wrench-goggles {
+      display: flex;
+      gap: 4px;
+      padding: 4px 6px;
+      background: #000;
+      border: 2px solid var(--cyan);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,240,255,0.4);
+      user-select: none;
+      transition: transform 0.1s ease;
+    }
+    .wrench-goggles:hover { transform: scale(1.05); }
+    .goggle-lens {
+      width: 26px;
+      height: 22px;
+      background: #050508;
+      border: 1px solid var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cyan);
+      font-weight: 900;
+      font-size: 14px;
+      text-shadow: 0 0 6px var(--cyan);
+    }
+
+    h1 { font-size: 16px; font-weight: 900; letter-spacing: 1px; color: #fff; text-transform: uppercase; }
+    .motto { font-size: 10px; color: var(--yellow); letter-spacing: 0.5px; margin-top: 2px; font-weight: bold; }
     .header-badges { display: flex; gap: 8px; align-items: center; }
+    
     .badge {
       font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      background: rgba(0,240,255,0.1);
+      font-weight: 800;
+      padding: 4px 8px;
+      background: rgba(0,240,255,0.12);
       border: 1px solid var(--cyan);
       color: var(--cyan);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
-    .badge-alert {
-      background: rgba(255,0,85,0.15);
-      border: 1px solid var(--magenta);
-      color: var(--magenta);
+    .badge-stencil {
+      background: var(--yellow);
+      color: #000;
+      font-weight: 900;
+      border: none;
+      clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
     }
 
     /* Live Display Mirror Frame */
@@ -101,8 +145,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      border-top: 2px solid var(--green);
+      gap: 10px;
+      border-top: 3px solid var(--green);
+      position: relative;
     }
     .display-header {
       width: 100%;
@@ -119,9 +164,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       max-width: 520px;
       aspect-ratio: 250 / 122;
       image-rendering: pixelated;
-      border: 2px solid #222c3d;
+      border: 2px solid #28344a;
       background: #000;
-      box-shadow: 0 0 20px rgba(0,240,255,0.1);
+      box-shadow: 0 0 25px rgba(0,255,102,0.15);
     }
 
     /* Yield & Bounty Matrix Panel */
@@ -132,16 +177,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       gap: 10px;
-      border-left: 4px solid var(--green);
+      border-left: 5px solid var(--green);
+      clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
     }
     .panel-title {
-      font-size: 12px;
-      font-weight: 800;
+      font-size: 11px;
+      font-weight: 900;
       color: var(--green);
       letter-spacing: 1px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      text-transform: uppercase;
     }
     .bounty-grid {
       display: grid;
@@ -152,14 +199,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       background: var(--card);
       border: 1px solid var(--border);
       padding: 10px;
+      position: relative;
     }
-    .bounty-tile-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; }
-    .bounty-tile-val { font-size: 14px; font-weight: 800; color: #fff; }
-    .val-green { color: var(--green); text-shadow: 0 0 6px rgba(0,255,102,0.4); }
-    .val-cyan { color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,0.4); }
-    .val-yellow { color: var(--yellow); }
+    .bounty-tile-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; font-weight: bold; }
+    .bounty-tile-val { font-size: 14px; font-weight: 900; color: #fff; }
+    .val-green { color: var(--green); text-shadow: 0 0 8px rgba(0,255,102,0.5); }
+    .val-cyan { color: var(--cyan); text-shadow: 0 0 8px rgba(0,240,255,0.5); }
+    .val-yellow { color: var(--yellow); text-shadow: 0 0 6px rgba(255,230,0,0.4); }
 
-    /* Action Controls */
+    /* Action Controls Grid */
     .actions-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -171,55 +219,66 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       border: 1px solid var(--border);
       color: var(--text);
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       text-decoration: none;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: all 0.1s ease;
+      transition: all 0.12s ease;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     button:hover, a.btn:hover {
-      background: rgba(0, 240, 255, 0.15);
+      background: rgba(0, 240, 255, 0.18);
       border-color: var(--cyan);
       color: var(--cyan);
-      box-shadow: 0 0 10px rgba(0,240,255,0.2);
+      box-shadow: 0 0 12px rgba(0,240,255,0.3);
     }
-    button:active, a.btn:active { transform: scale(0.98); }
+    button:active, a.btn:active { transform: scale(0.97); }
     .btn-bounty {
-      background: rgba(0, 255, 102, 0.12);
+      background: rgba(0, 255, 102, 0.14);
       border-color: var(--green);
       color: var(--green);
     }
     .btn-bounty:hover {
-      background: rgba(0, 255, 102, 0.25);
+      background: rgba(0, 255, 102, 0.28);
       color: #fff;
-      box-shadow: 0 0 12px rgba(0,255,102,0.4);
+      box-shadow: 0 0 14px rgba(0,255,102,0.5);
+    }
+    .btn-magenta {
+      background: rgba(255, 0, 85, 0.14);
+      border-color: var(--magenta);
+      color: var(--magenta);
+    }
+    .btn-magenta:hover {
+      background: rgba(255, 0, 85, 0.3);
+      color: #fff;
+      box-shadow: 0 0 14px rgba(255,0,85,0.5);
     }
     .btn-cyan {
-      background: rgba(0, 240, 255, 0.12);
+      background: rgba(0, 240, 255, 0.14);
       border-color: var(--cyan);
       color: var(--cyan);
     }
 
-    /* Terminal Console */
+    /* Terminal Console Box */
     .console-box {
       border: 1px solid var(--border);
-      background: #040508;
+      background: #030407;
       padding: 12px;
       font-size: 11px;
       line-height: 1.4;
       max-height: 160px;
       overflow-y: auto;
-      border-left: 4px solid var(--magenta);
+      border-left: 5px solid var(--magenta);
     }
     .log-line { color: var(--muted); font-size: 10px; }
     .log-line span.cyan { color: var(--cyan); }
     .log-line span.green { color: var(--green); }
     .log-line span.magenta { color: var(--magenta); }
+    .log-line span.yellow { color: var(--yellow); }
     .log-line span.white { color: #fff; font-weight: bold; }
   </style>
 </head>
@@ -229,14 +288,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <!-- Header -->
     <header>
       <div class="brand">
-        <span class="skull">[ X_X ]</span>
+        <div class="wrench-goggles" id="wrench-avatar" onclick="cycleWrenchEye()" title="Click to cycle Wrench LED goggle expression!">
+          <div class="goggle-lens" id="goggle-l">X</div>
+          <div class="goggle-lens" id="goggle-r">X</div>
+        </div>
         <div>
-          <h1>DEDSEC // CYBEROS OPERATOR</h1>
+          <h1 class="glitch-text">DEDSEC // TECHNO-STREET OPERATOR</h1>
           <div class="motto">"DedSec has given you the truth. Do with it what you will."</div>
         </div>
       </div>
       <div class="header-badges">
-        <span class="badge" id="lvl-badge">LV. 1 NOVICE</span>
+        <span class="badge badge-stencil" id="lvl-badge">LV. 1 NOVICE</span>
         <span class="badge" id="defcon-badge">DEFCON 5 SECURE</span>
       </div>
     </header>
@@ -244,8 +306,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <!-- Live E-Ink Canvas Mirror -->
     <div class="display-box">
       <div class="display-header">
-        <span>// PHYSICAL E-PAPER MIRROR (250x122 1-BIT)</span>
-        <span id="rot-label">HW: 0° • COMPANION</span>
+        <span>// 1-BIT DITHERED E-PAPER CANVAS (250x122)</span>
+        <span id="rot-label">HW: 0° • INFILTRATOR</span>
       </div>
       <img src="/api/screen.png" alt="DedSec E-Ink Screen" class="screen-img" id="live-screen">
     </div>
@@ -285,10 +347,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
 
     <div class="actions-grid">
-      <button onclick="sendAction('pet')">🐾 Inject Pet (+10)</button>
-      <button onclick="sendAction('feed')">🍕 Feed Bytes (+15)</button>
+      <button class="btn-cyan" onclick="sendAction('siphon')">⚡ Siphon Mesh (+20)</button>
+      <button class="btn-bounty" onclick="sendAction('overclock')">⚙️ Overclock Core (+15)</button>
+      <button class="btn-magenta" onclick="sendAction('mode')">🖥️ Cycle Deck Mode</button>
       <button onclick="sendAction('flip')">🔄 Flip (180°)</button>
-      <button onclick="sendAction('mode')">🖥️ Toggle Mode</button>
     </div>
 
     <div class="actions-grid">
@@ -300,13 +362,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <!-- Real-time DedSec Console Log -->
     <div class="console-box" id="console-log">
-      <div class="log-line"><span class="cyan">[DEDSEC-INIT]</span> DedSec CyberOS Sentinel loaded on Raspberry Pi Zero 2 W.</div>
+      <div class="log-line"><span class="magenta">[DEDSEC-WEBPUNK]</span> Techno-Street Operative Deck active on Raspberry Pi Zero 2 W.</div>
       <div class="log-line"><span class="green">[YIELD-ENGINE]</span> Bandwidth & compute proof-of-uptime accumulator initialized ($4.20/d).</div>
-      <div class="log-line"><span class="magenta">[SENTINEL]</span> Local perimeter defense listening on wlan0. All shields nominal.</div>
+      <div class="log-line"><span class="cyan">[SENTINEL]</span> Local perimeter defense listening on wlan0. All shields nominal.</div>
     </div>
   </div>
 
   <script>
+    const WRENCH_EXPRESSIONS = ['X_X', '>_<', '*_*', '!_!', '$_$', '^_^', '?_?', 'O_O', '#_#', '-_-'];
+    let curExpIdx = 0;
+
+    function setWrenchEyes(exp) {
+      const parts = exp.split('_');
+      document.getElementById('goggle-l').innerText = parts[0] || 'X';
+      document.getElementById('goggle-r').innerText = parts[1] || parts[0] || 'X';
+    }
+
+    function cycleWrenchEye() {
+      curExpIdx = (curExpIdx + 1) % WRENCH_EXPRESSIONS.length;
+      const exp = WRENCH_EXPRESSIONS[curExpIdx];
+      setWrenchEyes(exp);
+      logMsg('WRENCH', 'Goggle HUD expression set to: [' + exp + ']', 'magenta');
+    }
+
     function logMsg(tag, msg, color) {
       const box = document.getElementById('console-log');
       const now = new Date().toTimeString().split(' ')[0];
@@ -330,7 +408,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           const data = await res.json();
           document.getElementById('lvl-badge').innerText = 'LV. ' + data.brain.level + ' ' + (data.brain.title || 'OPERATOR').toUpperCase();
           document.getElementById('defcon-badge').innerText = 'DEFCON ' + data.brain.defcon + ' ' + (data.security?.defcon_status || 'SECURE');
-          document.getElementById('rot-label').innerText = 'HW: ' + (data.brain.rotation || 0) + '° • ' + (data.brain.display_mode || 'companion').toUpperCase();
+          document.getElementById('rot-label').innerText = 'HW: ' + (data.brain.rotation || 0) + '° • ' + (data.brain.display_mode || 'infiltrator').toUpperCase();
+
+          if (data.brain && data.brain.face) {
+            setWrenchEyes(data.brain.face);
+          }
 
           if (data.bounty && data.bounty.ledger) {
             const l = data.bounty.ledger;
@@ -424,6 +506,8 @@ class GotchiWebServer:
         self.app.router.add_get("/api/bounty/report/{id}/markdown", self._handle_report_markdown)
 
         # Actions
+        self.app.router.add_post("/api/action/siphon", self._handle_siphon)
+        self.app.router.add_post("/api/action/overclock", self._handle_overclock)
         self.app.router.add_post("/api/action/pet", self._handle_pet)
         self.app.router.add_post("/api/action/feed", self._handle_feed)
         self.app.router.add_post("/api/action/flip", self._handle_flip)
@@ -457,12 +541,17 @@ class GotchiWebServer:
             img = self.engine.current_image
             if img is None:
                 return web.Response(status=503)
+        if img.mode not in ("RGB", "RGBA", "L"):
+            img = img.convert("L")
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return web.Response(
             body=buf.getvalue(),
             content_type="image/png",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
     async def _handle_stats_json(self, request: web.Request) -> web.Response:
@@ -476,12 +565,15 @@ class GotchiWebServer:
                 "face": self.engine.brain.state.face,
                 "quote": self.engine.brain.state.quote,
                 "title": self.engine.brain.state.title,
-                "hunger": self.engine.brain.state.hunger,
-                "happiness": self.engine.brain.state.happiness,
+                "siphon_power": self.engine.brain.state.siphon_power,
+                "overclock_level": self.engine.brain.state.overclock_level,
+                "system_integrity": self.engine.brain.state.system_integrity,
                 "rotation": self.engine.brain.state.rotation,
                 "display_mode": self.engine.brain.state.display_mode,
                 "defcon": self.engine.brain.state.defcon,
                 "threat_status": self.engine.brain.state.threat_status,
+                "total_siphons": self.engine.brain.state.total_siphons,
+                "total_harvests": self.engine.brain.state.total_harvests,
                 "total_security_scans": self.engine.brain.state.total_security_scans,
             },
             "dev": self.engine.dev_data,
@@ -569,6 +661,16 @@ class GotchiWebServer:
             content_type="text/csv",
             headers={"Content-Disposition": 'attachment; filename="omnigotchi_wardrive.csv"'},
         )
+
+    async def _handle_siphon(self, request: web.Request) -> web.Response:
+        self.engine.brain.siphon()
+        self.engine.trigger_render()
+        return web.Response(text=json.dumps({"ok": True, "siphon_power": self.engine.brain.state.siphon_power}), content_type="application/json")
+
+    async def _handle_overclock(self, request: web.Request) -> web.Response:
+        self.engine.brain.overclock()
+        self.engine.trigger_render()
+        return web.Response(text=json.dumps({"ok": True, "overclock_level": self.engine.brain.state.overclock_level}), content_type="application/json")
 
     async def _handle_pet(self, request: web.Request) -> web.Response:
         self.engine.brain.pet()
